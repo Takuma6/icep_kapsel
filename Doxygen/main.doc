@@ -1,0 +1,20 @@
+/*!
+
+\mainpage
+Welcome to the KAPSEL documentation
+\section sec_main_toc Table of Contents
+ - \subpage page_intro
+ - \subpage page_design
+ - \subpage release_notes
+ - \subpage page_license
+ - \subpage page_contact
+
+\page page_design Design & Implementation
+Table of contents
+The following developer's notes give a more or less detailed description of how we have implemented the SP method in KAPSEL, they were written with the aim of bridging the gap between the papers and the actual code. Although we have tried to use a consistent notation throughout this was not strictly enforced, the different sections should be considered self-contained and independent of each other. If you feel some part is missing, or incomplete, please help us make this guide better!
+- \subpage page_design_grid
+- \subpage page_design_fsolver
+- \subpage page_design_ssolver
+- \subpage page_rigid_body
+- \subpage page_design_swimmer
+*/
