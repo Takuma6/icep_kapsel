@@ -136,32 +136,34 @@ void Make_Maxwell_force_x_on_fluid(double **force,
   // compute the non-uniform dielectric field 'ep' and the gradient of it, 'dep'
   Make_dielectric_field(epsilon, phi, 100, 1);
   A2da(epsilon, grad_epsilon);
-  /*
-    A2a_k(epsilon);
-    A_k2da_k(epsilon, grad_epsilon);
-    for(int im; im<NX*NY*NZ; im++){
-      grad_epsilon[0][im] *= Shift_x[im];
-      grad_epsilon[1][im] *= Shift_y[im];
-      grad_epsilon[2][im] *= Shift_z[im];
-    }
-    A_k2a(epsilon);
-    U_k2u(grad_epsilon);
+  A2a_k(epsilon);
+  A_k2da_k(epsilon, grad_epsilon);
+  /* staggered
+  for(int im; im<NX*NY*NZ; im++){
+    grad_epsilon[0][im] *= Shift_x[im];
+    grad_epsilon[1][im] *= Shift_y[im];
+    grad_epsilon[2][im] *= Shift_z[im];
+  }
   */
+  A_k2a(epsilon);
+  U_k2u(grad_epsilon);
+  
   // poisson solver in a non-uniform dielectric
   Charge_field2potential_dielectric(free_charge_density, potential, external);
   // compute the electric field from the electric potential (take care about the staggered grid)
-  A2da(potential, force);
-  /*
-    A2a_k(potential);
-    A_k2da_k(potential, force);
-    for(int im; im<NX*NY*NZ; im++){
-      force[0][im] *= Shift_x[im];
-      force[1][im] *= Shift_y[im];
-      force[2][im] *= Shift_z[im];
-    }
-    A_k2a(potential);
-    U_k2u(force);
+  //A2da(potential, force);
+  A2a_k(potential);
+  A_k2da_k(potential, force);
+  /* staggered
+  for(int im; im<NX*NY*NZ; im++){
+    force[0][im] *= Shift_x[im];
+    force[1][im] *= Shift_y[im];
+    force[2][im] *= Shift_z[im];
+  }
   */
+  A_k2a(potential);
+  U_k2u(force);
+
   int im;
   double electric_field_x, electric_field_y, electric_field_z;
   double electric_field_square;
