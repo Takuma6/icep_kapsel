@@ -22,6 +22,8 @@ FFT = FFTW
 # FFT = OOURA
 ### HDF5 SUPPORT ###
 HDF5 = ON
+### Eigen SUPPORT ###
+EIGEN = ON
 
 ## default options
 # Use OCTA environment variables
@@ -129,6 +131,10 @@ ifeq ($(ENV), CLANG)
      CXX     = clang++
      LINKS   = -L/usr/local/lib -lm -lplatform -stdlib=libc++
      CCOPT   = -I/usr/local/include -g -fcolor-diagnostics -stdlib=libc++ 
+     ifeq ($(EIGEN), ON)
+      LINKS  += -L/usr/local/include/eigen3
+      CCOPT  += -I/usr/local/include/eigen3
+     endif
 endif
 
 ## options for GCC/MAC
@@ -244,6 +250,7 @@ endif
 
 OBJS  	= mt19937ar.o\
 	operate_electrolyte.o\
+  operate_dielectric.o\
 	fluct.o\
 	alloc.o\
 	solute_rhs.o\

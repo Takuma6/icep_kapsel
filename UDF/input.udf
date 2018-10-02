@@ -59,6 +59,13 @@ constitutive_eq:{
     0.0,                                //alpha_o
     1.00000000000000,                   //Dielectric_cst
     "Uniform",                          //INIT_profile
+    {//Dielectirc property
+      "ON",                             //ON/OFF
+      {//ON
+        1.0,                            //fluid permittivy
+        10.0                            //particle permittivity
+      }
+    }
     {//add_salt
       "salt",                           //type
       {//saltfree

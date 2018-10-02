@@ -71,7 +71,7 @@ void Time_evolution_hydro(double **zeta, double uk_dc[DIM], double **f, Particle
 		    }
 		}
 	    }
-      if(Dielectric!){
+      if(!Dielectric){
 	      Make_Coulomb_force_x_on_fluid(f, p, Concentration, up[0], up[1], jikan);
       }else{
         Make_Maxwell_force_x_on_fluid(f, p, Concentration, up[0], Potential, up[1], f_particle, jikan);
@@ -445,7 +445,7 @@ int main(int argc, char *argv[]){
   if(SW_EQ==Electrolyte){
     if(Dielectric){
       Init_rho_ion_dielectric(Concentration, particles, jikan);
-      Init_potential_dielectric(Concentration, up[0], Potential, up[1])
+      Init_potential_dielectric(particles, up[0], Concentration, up[1], Potential, up[2], jikan);
     }else{
       Init_rho_ion(Concentration, particles, jikan);
     }
@@ -482,7 +482,11 @@ int main(int argc, char *argv[]){
           if(SW_EQ != Electrolyte){
             Output_field_data(zeta, uk_dc, particles, jikan);
           }else if(SW_EQ==Electrolyte){
-            Output_charge_field_data(zeta, uk_dc, Concentration, particles, jikan);
+            if(Dielectric){
+              Output_dielectric_charge_field_data(zeta, uk_dc, Concentration, Potential, particles, jikan);
+            }else{
+              Output_charge_field_data(zeta, uk_dc, Concentration, particles, jikan);
+            }
           }
 	  Output_particle_data(particles, jikan);
 	  Output_close_frame();

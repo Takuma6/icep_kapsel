@@ -10,6 +10,7 @@
 
 #include "fluid_solver.h"
 #include "solute_rhs.h"
+#include "operate_dielectric.h"
 
 ///////////////////////////////////////
 extern double Bjerrum_length;
@@ -31,7 +32,7 @@ extern double *Total_solute;
   \param[in] jikan time data
  */
 void Init_rho_ion(double **Concentration, Particle *p, CTime &jikan);
-
+void Init_rho_ion_dielectric(double **Concentration, Particle *p, CTime &jikan);
 /*!
   \brief Allocate the requires memory for charged species data
  */

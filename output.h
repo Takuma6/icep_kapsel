@@ -63,6 +63,16 @@ void Output_charge_field_data(double** zeta,
 			      const CTime &time);
 
 /*!
+  \brief Write field data for non-uniform dielectric, charged systems to currently open time step frame
+ */
+void Output_dielectric_charge_field_data(double** zeta,
+            double* uk_dc,
+            double** Concentration,
+            double* potential,
+            Particle* p,
+            const CTime &time);
+
+/*!
   \brief Write particle data to currently open time step frame
  */
 void Output_particle_data(Particle*p, 

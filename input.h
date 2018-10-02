@@ -290,6 +290,9 @@ extern double Debye_length;
 extern double E_ext[DIM];
 extern double Frequency;
 extern double Angular_Frequency;
+extern int Dielectric;
+extern double eps_particle;
+extern double eps_fluid;
 ////// Temp Monitor
 
 extern double kT_snap_v; //fix R4A2

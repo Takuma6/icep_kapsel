@@ -259,6 +259,65 @@ void Output_charge_field_data(double** zeta,
   }
 }
 
+void Output_dielectric_charge_field_data(double** zeta,
+            double* uk_dc,
+            double** Concentration,
+            double* potential,
+            Particle* p,
+            const CTime &time){
+  if(print_field.none) return;
+  if(print_field.vel)
+    Zeta_k2u(zeta, uk_dc, u);
+
+  if(print_field.phi && !print_field.charge){
+    Reset_phi(phi);
+    Make_phi_particle(phi, p);
+  }else if(print_field.phi && print_field.charge){
+    Reset_phi(phi);
+    Reset_phi(up[0]);
+    Make_phi_qq_particle(phi, up[0], p);
+  }//print phi/charge?
+
+  if(print_field.charge){
+    for(int n=0;n<N_spec;n++){
+      A_k2a(Concentration[n]);
+    }
+    int im;
+    double dmy;
+    double dmy_surface_area = PI4*SQ(RADIUS);
+    //compute total concentration
+    for(int i = 0; i < NX; i++){
+      for(int j = 0; j < NY; j++){
+  for(int k = 0; k < NZ; k++){
+    im = (i*NY*NZ_) + (j*NZ_) + k;
+    dmy = 0.0;
+    for(int n = 0; n < N_spec; n++){
+      dmy += Elementary_charge*Valency[n]*Concentration[n][im];
+    }
+    up[0][im]*= dmy_surface_area;
+    up[1][im] = dmy*(1.0 - phi[im]);
+  }
+      }
+    }
+  }
+
+  //Writers
+  if(SW_OUTFORMAT == OUT_AVS_BINARY || SW_OUTFORMAT == OUT_AVS_ASCII){
+    Output_avs_charge(Avs_parameters, u, phi, up[0], up[1], potential, time);
+  }else if(SW_OUTFORMAT == OUT_EXT){
+#ifdef WITH_EXTOUT
+    writer -> write_charge_field_data(u, phi, up[0], up[1], potential);
+#endif
+  }
+
+  //recover original state
+  if(print_field.charge){
+    for(int n=0; n<N_spec; n++){
+      A2a_k(Concentration[n]);
+    }
+  }
+}
+
 void Output_particle_data(Particle* p, const CTime& time){
   if(Particle_Number == 0) return;
   if(SW_OUTFORMAT == OUT_AVS_BINARY || SW_OUTFORMAT == OUT_AVS_ASCII){

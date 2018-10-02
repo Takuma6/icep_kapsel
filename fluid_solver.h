@@ -13,6 +13,7 @@
 #include "input.h"
 #include "f_particle.h"
 #include "operate_omega.h"
+#include "operate_dielectric.h"
 #include "solute_rhs.h"
 #include "fluct.h"
 

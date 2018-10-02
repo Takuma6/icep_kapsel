@@ -263,6 +263,9 @@ double Debye_length;
 double E_ext[DIM];
 double Frequency;
 double Angular_Frequency;
+int Dielectric;
+double eps_particle;
+double eps_fluid;
 
 //double kT_snap_v=0.59;
 //double kT_snap_omega=0.61;
@@ -707,6 +710,31 @@ void Gourmet_file_io(const char *infile
 			    fprintf(stderr, "invalid INIT_profile\n"); 
 			    exit_job(EXIT_FAILURE);
 			}
+		    }
+		    {
+		    	target.down("Dielectric_property");
+		    	ufin->get(target.sub("type"), str);
+		    	ufout->put(target.sub("type"), str);
+		    	ufres->put(target.sub("type"), str);
+		    	if(str == "ON"){
+		    		Dielectric = 1;
+		    		target.down("ON");
+		    		ufin->get(target.sub("fluid"), eps_fluid);
+		    		ufout->put(target.sub("fluid"), eps_fluid);
+		    		ufres->put(target.sub("fluid"), eps_fluid);
+		    		ufin->get(target.sub("particle"), eps_particle);
+		    		ufout->put(target.sub("particle"), eps_particle);
+		    		ufres->put(target.sub("particle"), eps_particle);
+		    		fprintf(stderr,"#\n# eps_particle = %f, eps_fluid = %f \n", eps_particle, eps_fluid);
+		    		target.up();
+		    	}else if(str == "OFF"){
+                    Dielectric = 0;
+		    	}else{
+			    	fprintf(stderr, "invalid Dielectric_property\n"); 
+			    	exit_job(EXIT_FAILURE);
+			    }
+		    	// print out eps_fluid / eps_particle
+		    	target.up();
 		    }
 		    {
 			Location target("constitutive_eq.Electrolyte.Add_salt");
