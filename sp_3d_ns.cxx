@@ -71,7 +71,11 @@ void Time_evolution_hydro(double **zeta, double uk_dc[DIM], double **f, Particle
 		    }
 		}
 	    }
-	    Make_Coulomb_force_x_on_fluid(f, p, Concentration, up[0], up[1], jikan);
+      if(Dielectric!){
+	      Make_Coulomb_force_x_on_fluid(f, p, Concentration, up[0], up[1], jikan);
+      }else{
+        Make_Maxwell_force_x_on_fluid(f, p, Concentration, up[0], Potential, up[1], f_particle, jikan);
+      }
 	    
 	    double dmy = jikan.dt_fluid * IRHO;
 #pragma omp parallel for
@@ -298,6 +302,9 @@ inline void Mem_alloc_var(double **zeta){
     }
   }else if(SW_EQ == Electrolyte){
     Mem_alloc_charge();
+    if(Dielectric){
+      Mem_alloc_potential();
+    }
   }
   
   Mem_alloc_f_particle();
@@ -430,13 +437,18 @@ int main(int argc, char *argv[]){
 
     if(1){
       for(int d=0;d<DIM;d++){
-	uk_dc[d] = .0;
+	      uk_dc[d] = .0;
       }
     }
   }
   
   if(SW_EQ==Electrolyte){
-    Init_rho_ion(Concentration, particles, jikan);
+    if(Dielectric){
+      Init_rho_ion_dielectric(Concentration, particles, jikan);
+      Init_potential_dielectric(Concentration, up[0], Potential, up[1])
+    }else{
+      Init_rho_ion(Concentration, particles, jikan);
+    }
   }
 
   //  return EXIT_SUCCESS;

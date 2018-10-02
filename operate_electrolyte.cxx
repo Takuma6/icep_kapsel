@@ -300,13 +300,13 @@ void Make_phi_qq_fixed_particle(double *phi
   }
 }
 void Calc_free_energy_PB(double **conc_k
-			  ,Particle *p
-			  ,double *free_energy
-			  ,double *phi // working memory
-			  ,double *charge_density // working memory
-			  ,double *dmy_value // working memory
-			  ,const CTime &jikan
-			  ){
+                			  ,Particle *p
+                			  ,double *free_energy
+                			  ,double *phi // working memory
+                			  ,double *charge_density // working memory
+                			  ,double *dmy_value // working memory
+                			  ,const CTime &jikan
+                			  ){
 
   double free_energy_ideal = 0.;
   double free_energy_electrostatic = 0.;
@@ -322,48 +322,74 @@ void Calc_free_energy_PB(double **conc_k
       A_k2a_out(conc_k[n], dmy_value);
 #pragma omp parallel for reduction(+:free_energy_ideal) private(im,dmy_conc,dmy_phi)
       for(int i=0;i<NX;i++){
-	  for(int j=0;j<NY;j++){
-	  for(int k=0;k<NZ;k++){
-		im=(i*NY*NZ_)+(j*NZ_)+k;
-	    dmy_conc = dmy_value[im];
-	    dmy_phi = phi[im];
-	    free_energy_ideal += (1.- dmy_phi) * dmy_conc * (log(dmy_conc)-1.);
-	  }
-	  }
+    	  for(int j=0;j<NY;j++){
+      	  for(int k=0;k<NZ;k++){
+      		im=(i*NY*NZ_)+(j*NZ_)+k;
+      	    dmy_conc = dmy_value[im];
+      	    dmy_phi = phi[im];
+      	    free_energy_ideal += (1.- dmy_phi) * dmy_conc * (log(dmy_conc)-1.);
+      	  }
+    	  }
       }
     }
     free_energy_ideal *= (kBT * DX3);
   }
   {
     Conc_k2charge_field(p, conc_k, charge_density, phi, dmy_value);
-    {
+    
+    if(Dielectric){
+      double dmy_potential;
+      double external[DIM];
+      for(int d=0;d<DIM;d++){
+        external[d] = E_ext[d];
+        if(AC){
+          double time = jikan.time;
+          external[d] *= sin( Angular_Frequency * time);
+        }
+      }
+      #pragma omp parallel for private(im)
+      for(int i=0;i<NX;i++){
+        for(int j=0;j<NY;j++){
+          for(int k=0;k<NZ;k++){
+            im=(i*NY*NZ_)+(j*NZ_)+k;
+            dmy_potential = 0.5*Potential[im];
+            if(External_field){
+              dmy_potential -= ((external[0] * (double)i + external[1] * (double)j + external[2] * (double)k) * DX);
+            }
+            free_energy_electrostatic += charge_density[im] * dmy_potential;
+          }
+        }
+      }
+    }else{
       A2a_k_out(charge_density, dmy_value);
       Charge_field_k2Coulomb_potential_k_PBC(dmy_value);
       A_k2a(dmy_value);
 
 #pragma omp parallel for private(im)
       for(int i=0;i<NX;i++){
-	  for(int j=0;j<NY;j++){
-	  for(int k=0;k<NZ;k++){
-		im=(i*NY*NZ_)+(j*NZ_)+k;
-	    dmy_value[im] *= 0.5;
-	  }
-	  }
+    	  for(int j=0;j<NY;j++){
+      	  for(int k=0;k<NZ;k++){
+      		  im=(i*NY*NZ_)+(j*NZ_)+k;
+      	    dmy_value[im] *= 0.5;
+      	  }
+    	  }
       }
-
+    
       if(External_field){
-	Add_external_electric_field_x(dmy_value, jikan);
+  	    Add_external_electric_field_x(dmy_value, jikan);
       }
-    }
+    
 #pragma omp parallel for reduction(+:free_energy_electrostatic) private(im)
-    for(int i=0;i<NX;i++){
-      for(int j=0;j<NY;j++){
-	  for(int k=0;k<NZ;k++){
-		im=(i*NY*NZ_)+(j*NZ_)+k;
-	  free_energy_electrostatic += charge_density[im] * dmy_value[im];
-	}
+      for(int i=0;i<NX;i++){
+        for(int j=0;j<NY;j++){
+      	  for(int k=0;k<NZ;k++){
+        		im=(i*NY*NZ_)+(j*NZ_)+k;
+        	  free_energy_electrostatic += charge_density[im] * dmy_value[im];
+        	}
+        }
       }
     }
+
     free_energy_electrostatic *= DX3;
   }
 
@@ -537,9 +563,9 @@ inline void Set_uniform_ion_charge_density_salt(double **Concentration
   for(int i=0;i<NX;i++){
     for(int j=0;j<NY;j++){
       for(int k=0;k<NZ;k++){
-    im=(i*NY*NZ_)+(j*NZ_)+k;
-	dmy_phi = phi[im];
-	volume_phi += (1.-dmy_phi);
+        im=(i*NY*NZ_)+(j*NZ_)+k;
+    	  dmy_phi = phi[im];
+    	  volume_phi += (1.-dmy_phi);
       }
     }
   }
@@ -547,6 +573,9 @@ inline void Set_uniform_ion_charge_density_salt(double **Concentration
   double negative_ion_density = negative_ion_number / (volume_phi * DX3);
   
   double Rho_inf = kBT * Dielectric_cst / SQ(Elementary_charge * Debye_length);
+  if(Dielectric){
+    Rho_inf *= eps_fluid;
+  }
   double Rho_inf_positive_ion=Rho_inf/(Valency[0]*(Valency[0]-Valency[1]));
   double Rho_inf_negative_ion=-Rho_inf/(Valency[1]*(Valency[0]-Valency[1]));
 
@@ -554,9 +583,9 @@ inline void Set_uniform_ion_charge_density_salt(double **Concentration
   for(int i=0;i<NX;i++){
     for(int j=0;j<NY;j++){
       for(int k=0;k<NZ;k++){
-		int im=(i*NY*NZ_)+(j*NZ_)+k;
-	Concentration[0][im] = positive_ion_density + Rho_inf_positive_ion;
-	Concentration[1][im] = negative_ion_density + Rho_inf_negative_ion;
+    		int im=(i*NY*NZ_)+(j*NZ_)+k;
+    	  Concentration[0][im] = positive_ion_density + Rho_inf_positive_ion;
+    	  Concentration[1][im] = negative_ion_density + Rho_inf_negative_ion;
       }
     }
   }
@@ -807,6 +836,57 @@ void Init_rho_ion(double **Concentration, Particle *p, CTime &jikan){
     fprintf(stderr,"############################\n");
   }
   Count_solute_each(Total_solute, Concentration, p, phi, up[0]);
+}
+
+// ------------------------------------------------------------ NEW ------------------------------------------------------------
+void Init_rho_ion_dielectric(double **Concentration, Particle *p, CTime &jikan){
+  int have_surfase_charge = 1;
+  for(int i=0;i<Component_Number;i++){//コロイド表面電荷は0以外に設定する
+    if(Surface_charge[i] == 0.){
+      have_surfase_charge = 0;
+    }
+  }
+  if(have_surfase_charge){
+    Init_rho_ion(double **Concentration, Particle *p, CTime &jikan);
+  }else{
+    Bjerrum_length = SQ(Elementary_charge)/(PI4 * kBT * Dielectric_cst * eps_fluid);
+    Surface_ion_number = 0.;
+    for(int i=0; i<Component_Number; i++){
+      Surface_ion_number -= Surface_charge[i] * Particle_Numbers[i];
+    }
+
+    if(N_spec != 2){
+      fprintf(stderr,"invalid (number of ion spencies) = %d\n",N_spec);
+      exit_job(EXIT_FAILURE);
+    }else{
+      Valency[0] = Valency_positive_ion;
+      Valency[1] = Valency_negative_ion;
+      Onsager_coeff[0]= Onsager_coeff_positive_ion;
+      Onsager_coeff[1]= Onsager_coeff_negative_ion;
+    }
+
+    for(int n=0;n<N_spec;n++){
+      Valency_e[n] = Valency[n] * Elementary_charge;
+    }
+    {
+      if(Valency_positive_ion <= 0.){//正イオン価数 > 0
+        fprintf(stderr,"invalid (Valency_positive_ion) = %g\n",Valency_positive_ion);
+        exit_job(EXIT_FAILURE);
+      }
+      if(Valency_negative_ion >= 0.){//負イオン価数 < 0
+        fprintf(stderr,"invalid (Valency_negative_ion) = %g\n",Valency_negative_ion);
+        exit_job(EXIT_FAILURE);
+      }
+      fprintf(stderr,"############################ initial state for positive and negative ions\n");
+      fprintf(stderr,"# radius of particle / Debye length  %g\n" ,RADIUS / Debye_length);
+      {
+        Set_uniform_ion_charge_density_salt(Concentration, Total_solute, p);
+        fprintf(stderr,"# initialized by uniform distribution\n");
+      }
+      fprintf(stderr,"############################\n");
+    }
+    Count_solute_each(Total_solute, Concentration, p, phi, up[0]);
+  }
 }
 
 void Mem_alloc_charge(void){

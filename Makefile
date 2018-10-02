@@ -34,7 +34,7 @@ GOURMET_HOME_PATH  = /Users/oguri/OCTA83/GOURMET
 ENGINE_HOME_PATH   = /Users/oguri/OCTA83/ENGINES
 #GOURMET_HOME_PATH  = /opt/OCTA/OCTA83_gcc
 #ENGINE_HOME_PATH   = /opt/OCTA/OCTA83_gcc/ENGINES
-ARCH               = linux_64
+ARCH               = macosx
 OSX_GCC            = gcc-7
 OSX_GCXX           = g++-7
 
