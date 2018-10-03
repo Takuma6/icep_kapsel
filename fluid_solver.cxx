@@ -255,8 +255,13 @@ inline void Rhs_NS_Nernst_Planck(Particle *p
 				  ,double rhs_uk_dc[DIM] 
 				  ,const CTime &jikan
 				  ){
-  { // potential gradient in real space
-
+  if(Dielectric){
+  	A2a_k(Potential);
+  	A_k2da_k(Potential, grad_potential);
+  	A_k2a(Potential);
+    Add_constant_field_k(grad_potential, E_ext, jikan);
+    U_k2u(grad_potential);
+  }else{ // potential gradient in real space
     Conc_k2charge_field(p, concentration_k, u[0], u[1], u[2]);
     A2a_k(u[0]);
     Charge_field_k2Coulomb_potential_k_PBC(u[0]);

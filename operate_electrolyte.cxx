@@ -849,6 +849,7 @@ void Init_rho_ion_dielectric(double **Concentration, Particle *p, CTime &jikan){
   if(have_surfase_charge){
     Init_rho_ion(Concentration, p, jikan);
   }else{
+    fprintf(stderr,"no surface charge\n");
     Bjerrum_length = SQ(Elementary_charge)/(PI4 * kBT * Dielectric_cst * eps_fluid);
     Surface_ion_number = 0.;
     for(int i=0; i<Component_Number; i++){

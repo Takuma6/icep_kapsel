@@ -77,9 +77,9 @@ constitutive_eq: {
       alpha_o: 	double "correction coefficient of Omega"
       Dielectric_cst: double "dielectric constant"
       INIT_profile: select {"Uniform","Poisson_Boltzmann"} "Initial condition for density profile of ions"
-      Dielectric_property:{
+      Dielectric_property: {
         type:select {"ON", "OFF"}
-        "ON":{
+        ON:{
           fluid:double "fluid permittivity"
           particle:double "particle permittivy"
         }

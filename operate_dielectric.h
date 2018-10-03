@@ -10,6 +10,7 @@
 
 #include "fluid_solver.h"
 #include "solute_rhs.h"
+#include "operate_electrolyte.h"
 
 #include <math.h>
 #include <iostream>

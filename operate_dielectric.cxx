@@ -36,12 +36,12 @@ void Conc_k2charge_field_no_surfase_charge(Particle *p,
   }
 }
 
-void Make_dielectric_field(double *eps, double *phi, double eps_p, double eps_f){
+void Make_dielectric_field(double *eps, double *phi_p, double eps_p, double eps_f){
   for(int i = 0; i < NX; i++){
     for(int j = 0; j < NY; j++){
       for(int k = 0; k < NZ; k++){
         int im  = i*NY*NZ + j*NZ + k;
-        eps[im] = eps_f + (eps_p-eps_f)*phi[im];
+        eps[im] = eps_f*Dielectric_cst + (eps_p-eps_f)*Dielectric_cst*phi_p[im];
       }
     }
   }
@@ -96,17 +96,19 @@ void Charge_field2potential_dielectric(double *free_charge_density,
   int m = NX*NY*NZ;
   std::vector<T> coefficients;            // list of non-zeros coefficients
   Eigen::VectorXd b(m);                   // the right hand side-vector resulting from the constraints
-  for(int im=0; im<m; im++)
-    b[im] = free_charge_density[im];
+  Eigen::VectorXd x_ans(m);
+  for(int im=0; im<m; im++){
+    b[im] = -free_charge_density[im];
+    x_ans[im] = potential[im];
+  }
   buildProblem(coefficients, b, eps, external_e_field, m);
   SpMat A(m,m);
   A.setFromTriplets(coefficients.begin(), coefficients.end());
   // solve
   Eigen::GMRES<SpMat> gmres(A);
-  Eigen::VectorXd x_ans;
-  gmres.setMaxIterations(1000);
-  gmres.setTolerance(1e-5);
-  gmres.solveWithGuess(b, Eigen::VectorXd::Zero(m));
+  gmres.setMaxIterations(2000);
+  gmres.setTolerance(1e-6);
+  gmres.solveWithGuess(b, x_ans);
   x_ans = gmres.solve(b);
   //std::cout << "#iterations:     " << gmres.iterations() << std::endl;
   //std::cout << "estimated error: " << gmres.error()      << std::endl;
@@ -129,10 +131,13 @@ void Init_potential_dielectric(Particle *p,
       external[d] *= sin(Angular_Frequency * time);
     }
   }
+  for(int im; im<NX*NY*NZ; im++){
+    potential[im] = 0.0;
+  }
   // compute free charge density, assuming particles do not have initial charges
   Conc_k2charge_field(p, conc_k, free_charge_density, dmy_value, epsilon);
   // compute the non-uniform dielectric field 'ep' and the gradient of it, 'dep'
-  Make_dielectric_field(epsilon, phi, eps_particle, eps_fluid);
+  Make_dielectric_field(epsilon, dmy_value, eps_particle, eps_fluid);
   Charge_field2potential_dielectric(free_charge_density, potential, epsilon, external);
 }
 
@@ -141,8 +146,8 @@ void Make_Maxwell_force_x_on_fluid(double **force,
                                    double **conc_k,
                                    double *free_charge_density, // working memory
                                    double *potential,
-                                   double *epsilon,
-                                   double **grad_epsilon,
+                                   double *epsilon, // working memory
+                                   double **grad_epsilon, // working memory
                                    const CTime &jikan){
 
   // set the external electric field
@@ -158,7 +163,7 @@ void Make_Maxwell_force_x_on_fluid(double **force,
   // compute free charge density, assuming particles do not have initial charges
   Conc_k2charge_field(p, conc_k, free_charge_density, force[0], force[1]);
   // compute the non-uniform dielectric field 'ep' and the gradient of it, 'dep'
-  Make_dielectric_field(epsilon, phi, eps_particle, eps_fluid);
+  Make_dielectric_field(epsilon, force[0], eps_particle, eps_fluid);
   //A2da(epsilon, grad_epsilon);
   A2a_k(epsilon);
   A_k2da_k(epsilon, grad_epsilon);
