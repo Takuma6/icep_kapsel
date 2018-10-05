@@ -40,28 +40,28 @@ void Make_dielectric_field(double *eps, double *phi_p, double eps_p, double eps_
   for(int i = 0; i < NX; i++){
     for(int j = 0; j < NY; j++){
       for(int k = 0; k < NZ; k++){
-        int im  = i*NY*NZ + j*NZ + k;
+        int im  = i*NY*NZ_ + j*NZ_ + k;
         eps[im] = eps_f*Dielectric_cst + (eps_p-eps_f)*Dielectric_cst*phi_p[im];
       }
     }
   }
 }
 
-void insertCoefficient_x(int id1, int i_, int j_, int k_, double sign, Eigen::VectorXd& b, std::vector<T>& coeffs, double *eps, double external_e_field[]){
+void insertCoefficient_x(int id1, int i_, int j_, int k_, double sign, Eigen::VectorXd& b, std::vector<T>& coeffs, Eigen::VectorXd& eps, double external_e_field[]){
   int i_star = (i_+NX)%NX;
   int id2    = i_star*NY*NZ + j_*NZ + k_;
   b[id1]    += sign * eps[id2]*external_e_field[0]/(2*DX);
   coeffs.push_back(T(id1, id2,  (eps[id1]+eps[id2])/(2*DX*DX)));             
   coeffs.push_back(T(id1, id1, -(eps[id1]+eps[id2])/(2*DX*DX))); 
 }
-void insertCoefficient_y(int id1, int i_, int j_, int k_, double sign, Eigen::VectorXd& b, std::vector<T>& coeffs, double *eps, double external_e_field[]){
+void insertCoefficient_y(int id1, int i_, int j_, int k_, double sign, Eigen::VectorXd& b, std::vector<T>& coeffs, Eigen::VectorXd& eps, double external_e_field[]){
   int j_star = (j_+NY)%NY;
   int id2    = i_*NY*NZ + j_star*NZ + k_;
   b[id1]    += sign * eps[id2]*external_e_field[1]/(2*DX);
   coeffs.push_back(T(id1, id2,  (eps[id1]+eps[id2])/(2*DX*DX)));
   coeffs.push_back(T(id1, id1, -(eps[id1]+eps[id2])/(2*DX*DX))); 
 }
-void insertCoefficient_z(int id1, int i_, int j_, int k_, double sign, Eigen::VectorXd& b, std::vector<T>& coeffs, double *eps, double external_e_field[]){
+void insertCoefficient_z(int id1, int i_, int j_, int k_, double sign, Eigen::VectorXd& b, std::vector<T>& coeffs, Eigen::VectorXd& eps, double external_e_field[]){
   int k_star = (k_+NZ)%NZ;
   int id2    = i_*NY*NZ + j_*NZ + k_star;
   b[id1]    += sign * eps[id2]*external_e_field[2]/(2*DX);
@@ -70,7 +70,7 @@ void insertCoefficient_z(int id1, int i_, int j_, int k_, double sign, Eigen::Ve
 }
 void buildProblem(std::vector<T>& coefficients, 
                   Eigen::VectorXd& b, 
-                  double *eps, 
+                  Eigen::VectorXd& eps, 
                   double external_e_field[],
                   const int m){
   for(int i = 0; i < NX; i++){
@@ -92,16 +92,24 @@ void Charge_field2potential_dielectric(double *free_charge_density,
                                        double *potential,
                                        double *eps,
                                        double external_e_field[]){
-  // Assembly:
   int m = NX*NY*NZ;
+  int im, im_;
   std::vector<T> coefficients;            // list of non-zeros coefficients
   Eigen::VectorXd b(m);                   // the right hand side-vector resulting from the constraints
+  Eigen::VectorXd dmy_eps(m);             // this is not a cool way, should be modified
   Eigen::VectorXd x_ans(m);
-  for(int im=0; im<m; im++){
-    b[im] = -free_charge_density[im];
-    x_ans[im] = potential[im];
+  for(int i = 0; i < NX; i++){
+    for(int j = 0; j < NY; j++){
+      for(int k = 0; k < NZ; k++){
+        im  = i*NY*NZ  + j*NZ  + k;
+        im_ = i*NY*NZ_ + j*NZ_ + k;
+        b[im]       = -free_charge_density[im_];
+        dmy_eps[im] = eps[im_];
+        x_ans[im]   = potential[im_];
+      }
+    }
   }
-  buildProblem(coefficients, b, eps, external_e_field, m);
+  buildProblem(coefficients, b, dmy_eps, external_e_field, m);
   SpMat A(m,m);
   A.setFromTriplets(coefficients.begin(), coefficients.end());
   // solve
@@ -112,8 +120,15 @@ void Charge_field2potential_dielectric(double *free_charge_density,
   x_ans = gmres.solve(b);
   //std::cout << "#iterations:     " << gmres.iterations() << std::endl;
   //std::cout << "estimated error: " << gmres.error()      << std::endl;
-  for(int im=0; im<m; im++)
-    potential[im] = x_ans[im];
+  for(int i = 0; i < NX; i++){
+    for(int j = 0; j < NY; j++){
+      for(int k = 0; k < NZ; k++){
+        im  = i*NY*NZ  + j*NZ  + k;
+        im_ = i*NY*NZ_ + j*NZ_ + k;
+        potential[im_] = x_ans[im];
+      }
+    }
+  }
 }
 
 void Init_potential_dielectric(Particle *p,
@@ -131,10 +146,17 @@ void Init_potential_dielectric(Particle *p,
       external[d] *= sin(Angular_Frequency * time);
     }
   }
-  for(int im; im<NX*NY*NZ; im++){
-    potential[im] = 0.0;
+  // fill with 0 as as initial guess x0
+  for(int i = 0; i < NX; i++){
+    for(int j = 0; j < NY; j++){
+      for(int k = 0; k < NZ; k++){
+        int im = i*NY*NZ_ + j*NZ_ + k;
+        potential[im] = 0.0;
+      }
+    }
   }
   // compute free charge density, assuming particles do not have initial charges
+  fprintf(stderr,"# calculate an initial value of Potential\n");
   Conc_k2charge_field(p, conc_k, free_charge_density, dmy_value, epsilon);
   // compute the non-uniform dielectric field 'ep' and the gradient of it, 'dep'
   Make_dielectric_field(epsilon, dmy_value, eps_particle, eps_fluid);
