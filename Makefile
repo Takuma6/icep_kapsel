@@ -6,7 +6,7 @@
 ### FOR LINUX ##
 # ENV = GCC
 # ENV = ICC
-# ENV = ICC_OMP
+ENV = ICC_OMP
 ### FOR WINDOWS ###
 #ENV = CYGWIN
 #ENV = MINGW64
@@ -14,7 +14,7 @@
 #
 ### FOR MAC ###
 #ENV = GCC_MAC
-ENV = CLANG
+#ENV = CLANG
 #
 ### FFT LIB ###
 FFT = FFTW
@@ -32,11 +32,11 @@ EIGEN = ON
 #ARCH              = $(PF_ENGINEARCH)
 # OR
 # Define environment variables explicitly here
-GOURMET_HOME_PATH  = /Users/oguri/OCTA83/GOURMET
-ENGINE_HOME_PATH   = /Users/oguri/OCTA83/ENGINES
+GOURMET_HOME_PATH  = /usr/local/OCTA83/GOURMET
+ENGINE_HOME_PATH   = /usr/local/OCTA83/ENGINES
 #GOURMET_HOME_PATH  = /opt/OCTA/OCTA83_gcc
 #ENGINE_HOME_PATH   = /opt/OCTA/OCTA83_gcc/ENGINES
-ARCH               = macosx
+ARCH               = linux_64
 OSX_GCC            = gcc-7
 OSX_GCXX           = g++-7
 
@@ -232,7 +232,7 @@ ifeq ($(ENV), ICC_OMP)
      ARCH   = linux_64
      CC     = icc 
      CXX    = icpc 
-     CCOPT  = -O3 -xSSSE3 -axCOMMON-AVX512,CORE-AVX512,CORE-AVX2,CORE-AVX-I,AVX,SSE4.2,SSE4.1,SSSE3,SSE3,SSE2 -ip -qopenmp -parallel -w0
+     CCOPT  = -O3 -xSSSE3 -axCOMMON-AVX512,CORE-AVX512,CORE-AVX2,CORE-AVX-I,AVX,SSE4.2,SSE4.1,SSSE3,SSE3,SSE2 -ip -qopenmp -parallel -w0 -D_MM_MALLOC_H_INCLUDED=1
      LINKS  = -lm -lplatform -lstdc++
      ifeq ($(HDF5), ON)
 	LINKS  += -L/opt/hdf5.1.8/lib
@@ -246,11 +246,14 @@ ifeq ($(ENV), ICC_OMP)
 	CCOPT += -D_FFT_IMKL
 	LINKS += -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lpthread -static_intel 
      endif
+     ifeq ($(EIGEN), ON)
+        CCOPT += -I/usr/local/eigen-git-mirror
+     endif
 endif
 
 OBJS  	= mt19937ar.o\
 	operate_electrolyte.o\
-  operate_dielectric.o\
+        operate_dielectric.o\
 	fluct.o\
 	alloc.o\
 	solute_rhs.o\

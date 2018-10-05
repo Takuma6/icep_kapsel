@@ -8,6 +8,10 @@
 #ifndef OPERATE_DIELECTRIC_H
 #define OPERATE_DIELECTRIC_H
 
+#ifdef __INTEL_COMPILER
+#define _MM_MALLOC_H_INCLUDED
+#endif
+
 #include "fluid_solver.h"
 #include "solute_rhs.h"
 #include "operate_electrolyte.h"

@@ -23,7 +23,7 @@ void Conc_k2charge_field_no_surfase_charge(Particle *p,
 
   for(int n=0;n< N_spec;n++){
     A_k2a_out(conc_k[n], dmy_value);
-#pragma omp parallel for private(im,dmy_phi,dmy_conc)
+#pragma omp parallel for private(im,dmy_conc)
     for(int i=0;i<NX;i++){
 	    for(int j=0;j<NY;j++){
 	      for(int k=0;k<NZ;k++){
