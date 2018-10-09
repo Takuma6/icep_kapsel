@@ -6,7 +6,7 @@
 ### FOR LINUX ##
 # ENV = GCC
 # ENV = ICC
-ENV = ICC_OMP
+# ENV = ICC_OMP
 ### FOR WINDOWS ###
 #ENV = CYGWIN
 #ENV = MINGW64
@@ -14,7 +14,7 @@ ENV = ICC_OMP
 #
 ### FOR MAC ###
 #ENV = GCC_MAC
-#ENV = CLANG
+ENV = CLANG
 #
 ### FFT LIB ###
 FFT = FFTW
@@ -32,11 +32,11 @@ EIGEN = ON
 #ARCH              = $(PF_ENGINEARCH)
 # OR
 # Define environment variables explicitly here
-GOURMET_HOME_PATH  = /usr/local/OCTA83/GOURMET
-ENGINE_HOME_PATH   = /usr/local/OCTA83/ENGINES
+GOURMET_HOME_PATH  = /Users/oguri/OCTA83/GOURMET
+ENGINE_HOME_PATH   = /Users/oguri/OCTA83/ENGINES
 #GOURMET_HOME_PATH  = /opt/OCTA/OCTA83_gcc
 #ENGINE_HOME_PATH   = /opt/OCTA/OCTA83_gcc/ENGINES
-ARCH               = linux_64
+ARCH               = macosx
 OSX_GCC            = gcc-7
 OSX_GCXX           = g++-7
 

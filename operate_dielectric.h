@@ -8,10 +8,6 @@
 #ifndef OPERATE_DIELECTRIC_H
 #define OPERATE_DIELECTRIC_H
 
-#ifdef __INTEL_COMPILER
-#define _MM_MALLOC_H_INCLUDED
-#endif
-
 #include "fluid_solver.h"
 #include "solute_rhs.h"
 #include "operate_electrolyte.h"
@@ -68,9 +64,9 @@ void Conc_k2charge_field_no_surfase_charge(Particle *p,
                                            double *dmy_value); // working memory
 
 void Make_dielectric_field(double *eps, double *phi, double eps_p, double eps_f);
-void insertCoefficient_x(int id, int i_, int j_, int k_, double sign, Eigen::VectorXd& b, std::vector<T>& coeffs, double *eps, double external_e_field[]);
-void insertCoefficient_y(int id, int i_, int j_, int k_, double sign, Eigen::VectorXd& b, std::vector<T>& coeffs, double *eps, double external_e_field[]);
-void insertCoefficient_z(int id, int i_, int j_, int k_, double sign, Eigen::VectorXd& b, std::vector<T>& coeffs, double *eps, double external_e_field[]);
+void insertCoefficient_x(int id, int i_, int j_, int k_, double sign, Eigen::VectorXd& b, std::vector<T>& coeffs, Eigen::VectorXd& eps_eigen, double external_e_field[]);
+void insertCoefficient_y(int id, int i_, int j_, int k_, double sign, Eigen::VectorXd& b, std::vector<T>& coeffs, Eigen::VectorXd& eps_eigen, double external_e_field[]);
+void insertCoefficient_z(int id, int i_, int j_, int k_, double sign, Eigen::VectorXd& b, std::vector<T>& coeffs, Eigen::VectorXd& eps_eigen, double external_e_field[]);
 
 /*!
   \brief Constract A and b in Ax=b
@@ -86,7 +82,7 @@ void insertCoefficient_z(int id, int i_, int j_, int k_, double sign, Eigen::Vec
  */
 void buildProblem(std::vector<T>& coefficients, 
                   Eigen::VectorXd& b, 
-                  double *eps, 
+                  Eigen::VectorXd& eps_eigen, 
                   double external_e_field[],
                   const int m);
 
@@ -112,7 +108,7 @@ void Init_potential_dielectric(Particle *p,
                                double **conc_k,
                                double *free_charge_density, // working memory
                                double *potential,
-                               double *epsilon,
+                               double *epsilon, // working memory
                                const CTime &jikan);
 
 void Make_Maxwell_force_x_on_fluid(double **force,
@@ -120,8 +116,8 @@ void Make_Maxwell_force_x_on_fluid(double **force,
                                    double **conc_k,
                                    double *free_charge_density, // working memory
                                    double *potential,
-                                   double *epsilon,
-                                   double **grad_epsilon,
+                                   double *epsilon, // working memory
+                                   double **grad_epsilon, // working memory
                                    const CTime &jikan);
 
 #endif
