@@ -85,7 +85,11 @@ class hdf5_writer : public output_writer {
    */
   void write_charge_field_data(double** u, double*phi, double* surface_charge, 
 			       double* solute_charge, double* potential);
-
+  /*!
+    \brief Write charged field data including raw concentration data to open frame
+   */
+  void write_raw_charge_field_data(double** u, double*phi, double* surface_charge, 
+             double* solute_charge, double* potential, double* plus_charge, double* minus_charge);
   /*!
     \brief Writes particle data to open frame
    */
@@ -145,6 +149,8 @@ class hdf5_writer : public output_writer {
   static const char* f_surface_charge_name;
   static const char* f_solute_charge_name;
   static const char* f_potential_charge_name;
+  static const char* f_plus_charge_name;
+  static const char* f_minus_charge_name;
   static const char* p_id_name;
   static const char* p_spec_name;
   static const char* p_pos_name;

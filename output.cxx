@@ -300,16 +300,14 @@ void Output_dielectric_charge_field_data(double** zeta,
       }
     }
   }
-
   //Writers
   if(SW_OUTFORMAT == OUT_AVS_BINARY || SW_OUTFORMAT == OUT_AVS_ASCII){
     Output_avs_charge(Avs_parameters, u, phi, up[0], up[1], Potential, time);
   }else if(SW_OUTFORMAT == OUT_EXT){
 #ifdef WITH_EXTOUT
-    writer -> write_charge_field_data(u, phi, up[0], up[1], Potential);
+    writer -> write_raw_charge_field_data(u, phi, up[0], up[1], Potential, Concentration[0], Concentration[1]);
 #endif
   }
-
   //recover original state
   if(print_field.charge){
     for(int n=0; n<N_spec; n++){

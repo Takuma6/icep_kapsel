@@ -10,6 +10,8 @@ const char* hdf5_writer::f_pressure_name = "pressure";
 const char* hdf5_writer::f_surface_charge_name = "surface_charge";
 const char* hdf5_writer::f_solute_charge_name = "solute_charge";
 const char* hdf5_writer::f_potential_charge_name= "e_potential";
+const char* hdf5_writer::f_plus_charge_name= "plus_charge";
+const char* hdf5_writer::f_minus_charge_name= "minus_charge";
 //particle properties
 const char* hdf5_writer::p_id_name = "id";
 const char* hdf5_writer::p_spec_name = "spec";
@@ -387,6 +389,27 @@ void hdf5_writer::write_charge_field_data(double** u, double* phi,
     this -> write_field_scalar(surface_charge, f_surface_charge_name);
     this -> write_field_scalar(solute_charge,  f_solute_charge_name);
     this -> write_field_scalar(potential, f_potential_charge_name);
+  }
+}
+void hdf5_writer::write_raw_charge_field_data(double** u, double* phi, 
+            double* surface_charge, double* solute_charge, double* potential,
+            double* plus_charge, double* minus_charge){
+  if(print_field.none) return;
+
+  if(print_field.vel){
+    this -> write_field_scalar(u[0], f_vel_name[0]);
+    this -> write_field_scalar(u[1], f_vel_name[1]);
+    this -> write_field_scalar(u[2], f_vel_name[2]);
+  }
+  if(print_field.phi){
+    this -> write_field_scalar(phi, f_phi_name);
+  }
+  if(print_field.charge){
+    this -> write_field_scalar(surface_charge, f_surface_charge_name);
+    this -> write_field_scalar(solute_charge,  f_solute_charge_name);
+    this -> write_field_scalar(potential, f_potential_charge_name);
+    this -> write_field_scalar(plus_charge,   f_plus_charge_name);
+    this -> write_field_scalar(minus_charge,  f_minus_charge_name);
   }
 }
 
