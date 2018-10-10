@@ -22,6 +22,7 @@ typedef Eigen::Triplet<double> T;
 //it takes long time to compute Ax=b in an iterative way like GMRES
 //so the potential (or electric field) should be kept till the next step, computing advection-diffusion
 extern double *Potential; 
+extern int have_surface_charge;
 
 /*!
   Compute the solute source term appearing in the rhs of the Navier-Stokes equation (including possible contributions from the external field) in the case of non-uniform dielectric field

@@ -53,11 +53,13 @@ void Time_evolution_hydro(double **zeta, double uk_dc[DIM], double **f, Particle
         Make_phi_particle_sum(phi, phi_sum, p);
 	
 	if(SW_EQ == Electrolyte){
+    if(!Dielectric){
 	    double * rescale_factor = new double[N_spec];
 	    Rescale_solute(rescale_factor
 			   ,Total_solute
 			   ,Concentration, p, phi, up[0]);
 	    delete [] rescale_factor;
+    }
 	}
 	
 	if(SW_EQ == Electrolyte){
@@ -304,6 +306,7 @@ inline void Mem_alloc_var(double **zeta){
     Mem_alloc_charge();
     if(Dielectric){
       Mem_alloc_potential();
+      //Potential = alloc_1d_double(NX*NY*NZ_);
     }
   }
   
@@ -444,8 +447,12 @@ int main(int argc, char *argv[]){
   
   if(SW_EQ==Electrolyte){
     if(Dielectric){
+      Reset_phi_u(phi, up);
       Init_rho_ion_dielectric(Concentration, particles, jikan);
       Init_potential_dielectric(particles, up[0], Concentration, up[1], Potential, up[2], jikan);
+      Reset_phi_u(phi, up);
+      Reset_phi(phi_sum);
+      Make_u_particle_sum(up, phi_sum, particles);
     }else{
       Init_rho_ion(Concentration, particles, jikan);
     }

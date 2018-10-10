@@ -314,30 +314,29 @@ void Calc_free_energy_PB(double **conc_k
   double dmy_conc;
   double dmy_phi;
 
-  {
-    Reset_phi(phi);
-    Make_phi_particle(phi, p);
+  if(Dielectric){
+    {
+      Reset_phi(phi);
+      Make_phi_particle(phi, p);
     
-    for(int n=0;n< N_spec;n++){
-      A_k2a_out(conc_k[n], dmy_value);
+      for(int n=0;n< N_spec;n++){
+        A_k2a_out(conc_k[n], dmy_value);
 #pragma omp parallel for reduction(+:free_energy_ideal) private(im,dmy_conc,dmy_phi)
-      for(int i=0;i<NX;i++){
-    	  for(int j=0;j<NY;j++){
-      	  for(int k=0;k<NZ;k++){
-      		im=(i*NY*NZ_)+(j*NZ_)+k;
-      	    dmy_conc = dmy_value[im];
-      	    dmy_phi = phi[im];
-      	    free_energy_ideal += (1.- dmy_phi) * dmy_conc * (log(dmy_conc)-1.);
-      	  }
-    	  }
+        for(int i=0;i<NX;i++){
+          for(int j=0;j<NY;j++){
+            for(int k=0;k<NZ;k++){
+              im=(i*NY*NZ_)+(j*NZ_)+k;
+              dmy_conc = dmy_value[im];
+              dmy_phi = phi[im];
+              free_energy_ideal += (1.- dmy_phi) * dmy_conc * (log(dmy_conc)-1.);
+              charge_density[im] += Valency_e[n] * dmy_conc * (1.- dmy_phi);
+            }
+          }
+        }
       }
-    }
     free_energy_ideal *= (kBT * DX3);
-  }
-  {
-    Conc_k2charge_field(p, conc_k, charge_density, phi, dmy_value);
-    
-    if(Dielectric){
+    }
+    {
       double dmy_potential;
       double external[DIM];
       for(int d=0;d<DIM;d++){
@@ -360,7 +359,30 @@ void Calc_free_energy_PB(double **conc_k
           }
         }
       }
-    }else{
+    }
+  }else{
+    {
+    Reset_phi(phi);
+    Make_phi_particle(phi, p);
+    
+    for(int n=0;n< N_spec;n++){
+      A_k2a_out(conc_k[n], dmy_value);
+#pragma omp parallel for reduction(+:free_energy_ideal) private(im,dmy_conc,dmy_phi)
+      for(int i=0;i<NX;i++){
+        for(int j=0;j<NY;j++){
+          for(int k=0;k<NZ;k++){
+          im=(i*NY*NZ_)+(j*NZ_)+k;
+            dmy_conc = dmy_value[im];
+            dmy_phi = phi[im];
+            free_energy_ideal += (1.- dmy_phi) * dmy_conc * (log(dmy_conc)-1.);
+          }
+        }
+      }
+    }
+    free_energy_ideal *= (kBT * DX3);
+    }
+    {
+      Conc_k2charge_field(p, conc_k, charge_density, phi, dmy_value);
       A2a_k_out(charge_density, dmy_value);
       Charge_field_k2Coulomb_potential_k_PBC(dmy_value);
       A_k2a(dmy_value);
@@ -389,9 +411,9 @@ void Calc_free_energy_PB(double **conc_k
         }
       }
     }
-
-    free_energy_electrostatic *= DX3;
   }
+  
+  free_energy_electrostatic *= DX3;
 
   free_energy[1] = free_energy_ideal;
   free_energy[2] = free_energy_electrostatic;
@@ -840,13 +862,24 @@ void Init_rho_ion(double **Concentration, Particle *p, CTime &jikan){
 
 // ------------------------------------------------------------ NEW ------------------------------------------------------------
 void Init_rho_ion_dielectric(double **Concentration, Particle *p, CTime &jikan){
-  int have_surfase_charge = 1;
-  for(int i=0;i<Component_Number;i++){//コロイド表面電荷は0以外に設定する
-    if(Surface_charge[i] == 0.){
-      have_surfase_charge = 0;
+  if(Surface_charge[0] == 0.0){
+    have_surface_charge = 0;
+    for(int i=0;i<Component_Number;i++){//コロイド表面電荷は0以外に設定する
+      if(Surface_charge[i] != 0.0){
+        fprintf(stderr,"invalid surface charge %d\n",N_spec);
+        exit_job(EXIT_FAILURE);
+      }
+    }
+  }else{
+    have_surface_charge = 1;
+    for(int i=0;i<Component_Number;i++){//コロイド表面電荷は0以外に設定する
+      if(Surface_charge[i] == 0.0){
+        fprintf(stderr,"invalid surface charge %d\n",N_spec);
+        exit_job(EXIT_FAILURE);
+      }
     }
   }
-  if(have_surfase_charge){
+  if(have_surface_charge){
     Init_rho_ion(Concentration, p, jikan);
   }else{
     fprintf(stderr,"# no surface charge\n");
