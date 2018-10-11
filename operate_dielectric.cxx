@@ -179,10 +179,14 @@ void Init_potential_dielectric(Particle *p,
   
   // compute free charge density, assuming particles do not have initial charges
   fprintf(stderr,"# calculate an initial value of Potential\n");
-  Conc_k2charge_field_no_surfase_charge(p, conc_k, free_charge_density, dmy_value, epsilon);
-  A2a_k_out(free_charge_density, potential);
-  Charge_field_k2Coulomb_potential_k_PBC(potential);
-  A_k2a(potential);
+  if(have_surface_charge){
+    Conc_k2charge_field(p, conc_k, free_charge_density, dmy_value, epsilon);
+  }else{
+    Conc_k2charge_field_no_surfase_charge(p, conc_k, free_charge_density, dmy_value, epsilon);
+  }
+  //A2a_k_out(free_charge_density, potential);
+  //Charge_field_k2Coulomb_potential_k_PBC(potential);
+  //A_k2a(potential);
   // compute the non-uniform dielectric field 'ep' and the gradient of it, 'dep'
   Make_dielectric_field(epsilon, dmy_value, eps_particle, eps_fluid);
   Charge_field2potential_dielectric(free_charge_density, potential, epsilon, external);
@@ -209,7 +213,11 @@ void Make_Maxwell_force_x_on_fluid(double **force,
   }
   
   // compute free charge density, assuming particles do not have initial charges
-  Conc_k2charge_field_no_surfase_charge(p, conc_k, free_charge_density, force[0], force[1]);
+  if(have_surface_charge){
+    Conc_k2charge_field(p, conc_k, free_charge_density, dmy_value, epsilon);
+  }else{
+    Conc_k2charge_field_no_surfase_charge(p, conc_k, free_charge_density, dmy_value, epsilon);
+  }
   // compute the non-uniform dielectric field 'ep' and the gradient of it, 'dep'
   Make_dielectric_field(epsilon, force[0], eps_particle, eps_fluid);
   // poisson solver in a non-uniform dielectric
