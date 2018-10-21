@@ -8,6 +8,7 @@
 #include "operate_dielectric.h"
 
 double *Potential;
+double **grad_epsilon; 
 int have_surface_charge;
 Eigen::VectorXd b;                   // the right hand side-vector resulting from the constraints
 Eigen::VectorXd dmy_eps;             // this is not a cool way, should be modified
@@ -15,10 +16,12 @@ Eigen::VectorXd x_ans;
 
 
 void Mem_alloc_potential(void){
-  Potential = alloc_1d_double(NX*NY*NZ_);
-  b         = Eigen::VectorXd::Zero(NX*NY*NZ);             // the right hand side-vector resulting from the constraints
-  dmy_eps   = Eigen::VectorXd::Zero(NX*NY*NZ);             // this is not a cool way, should be modified
-  x_ans     = Eigen::VectorXd::Zero(NX*NY*NZ);
+  Potential    = alloc_1d_double(NX*NY*NZ_);
+  grad_epsilon = (double **) malloc(sizeof(double *) * DIM);
+  for(int d=0; d<DIM; d++) grad_epsilon[d] = alloc_1d_double(NX*NY*NZ_);
+  b            = Eigen::VectorXd::Zero(NX*NY*NZ);             // the right hand side-vector resulting from the constraints
+  dmy_eps      = Eigen::VectorXd::Zero(NX*NY*NZ);             // this is not a cool way, should be modified
+  x_ans        = Eigen::VectorXd::Zero(NX*NY*NZ);
 }
 void print_error_index(int index_here, int range){
   if(index_here<0 || index_here>=range)
@@ -214,9 +217,9 @@ void Make_Maxwell_force_x_on_fluid(double **force,
   
   // compute free charge density, assuming particles do not have initial charges
   if(have_surface_charge){
-    Conc_k2charge_field(p, conc_k, free_charge_density, dmy_value, epsilon);
+    Conc_k2charge_field(p, conc_k, free_charge_density, force[0], force[1]);
   }else{
-    Conc_k2charge_field_no_surfase_charge(p, conc_k, free_charge_density, dmy_value, epsilon);
+    Conc_k2charge_field_no_surfase_charge(p, conc_k, free_charge_density, force[0], force[1]);
   }
   // compute the non-uniform dielectric field 'ep' and the gradient of it, 'dep'
   Make_dielectric_field(epsilon, force[0], eps_particle, eps_fluid);

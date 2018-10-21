@@ -22,6 +22,7 @@ typedef Eigen::Triplet<double> T;
 //it takes long time to compute Ax=b in an iterative way like GMRES
 //so the potential (or electric field) should be kept till the next step, computing advection-diffusion
 extern double *Potential; 
+extern double **grad_epsilon; 
 extern int have_surface_charge;
 
 /*!

@@ -76,7 +76,7 @@ void Time_evolution_hydro(double **zeta, double uk_dc[DIM], double **f, Particle
       if(!Dielectric){
 	      Make_Coulomb_force_x_on_fluid(f, p, Concentration, up[0], up[1], jikan);
       }else{
-        Make_Maxwell_force_x_on_fluid(f, p, Concentration, up[0], Potential, up[1], f_particle, jikan);
+        Make_Maxwell_force_x_on_fluid(f, p, Concentration, up[0], Potential, up[1], grad_epsilon, jikan);
       }
 	    
 	    double dmy = jikan.dt_fluid * IRHO;
