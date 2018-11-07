@@ -25,6 +25,48 @@ extern double *Potential;
 extern double **grad_epsilon; 
 extern int have_surface_charge;
 
+inline void rm_external_electric_field_x(double *potential
+            ,const CTime &jikan
+            ){
+  double external[DIM];
+  for(int d=0;d<DIM;d++){
+    external[d] = E_ext[d];
+    if(AC){
+      double time = jikan.time;
+      external[d] *= sin( Angular_Frequency * time);
+    }
+  }
+
+  int im;
+#pragma omp parallel for private(im)
+  for(int i=0;i<NX;i++){
+    for(int j=0;j<NY;j++){
+      for(int k=0;k<NZ;k++){
+    im=(i*NY*NZ_)+(j*NZ_)+k;
+  potential[im] += (
+             (external[0] * (double)i 
+        + external[1] * (double)j 
+        + external[2] * (double)k
+        ) 
+             * DX);
+      }
+    }
+  }
+}
+
+void Make_phi_sin_primitive(Particle *p, 
+                            double *phi_p,
+                            const int &SW_UP,
+                            const double &dx,
+                            const int &np_domain,
+                            int **sekibun_cell,
+                            const int Nlattice[DIM],
+                            const double radius = RADIUS);
+
+void Make_phi_sin(double *phi_sin,
+                  Particle *p,
+                  const double radius = RADIUS);
+
 /*!
   Compute the solute source term appearing in the rhs of the Navier-Stokes equation (including possible contributions from the external field) in the case of non-uniform dielectric field
   \details
@@ -65,7 +107,25 @@ void Conc_k2charge_field_no_surfase_charge(Particle *p,
                                            double *phi,
                                            double *dmy_value); // working memory
 
-void Make_dielectric_field(double *eps, double *phi, double eps_p, double eps_f);
+void Conc_k2charge_field_surface_charge(Particle *p, 
+                                        double *charge_density,
+                                        double *phi_p); // working memory
+
+void Make_janus_normal_dielectric(double r[DIM], const Particle &p);
+
+void Make_janus_permittivity_dielectric(Particle *p, 
+                                        const double eps_p_top,
+                                        const double eps_p_bottom,
+                                        double *eps,
+                                        double *phi_p);
+
+void Make_dielectric_field(Particle *p, 
+                           double *eps, 
+                           double *phi_p, 
+                           const double eps_p_top, 
+                           const double eps_p_bottom, 
+                           const double eps_f);
+
 void insertCoefficient_x(int id, int i_, int j_, int k_, double sign, Eigen::VectorXd& b, std::vector<T>& coeffs, Eigen::VectorXd& eps_eigen, double external_e_field[]);
 void insertCoefficient_y(int id, int i_, int j_, int k_, double sign, Eigen::VectorXd& b, std::vector<T>& coeffs, Eigen::VectorXd& eps_eigen, double external_e_field[]);
 void insertCoefficient_z(int id, int i_, int j_, int k_, double sign, Eigen::VectorXd& b, std::vector<T>& coeffs, Eigen::VectorXd& eps_eigen, double external_e_field[]);
@@ -104,6 +164,23 @@ void Charge_field2potential_dielectric(double *free_charge_density,
                                        double *potential,
                                        double *eps,
                                        double external_e_field[]);
+
+/*!
+  \brief Solve linear equation Ax=b (real space, staggered grid), ignoring solute charge
+  \details Compute the electric potential by solving linear equation Ax=b from Poisson eq. 
+  \f[
+  \vec{x}=A^{-1}\vec{b}
+  \f]
+  \param[in] p particle data
+  \param[in] conc_k solute concentration field (reciprocal space) 
+  \param[out] charge_density total charge density (real space)
+  \param[in,out] phi auxiliary field to compute the smooth profile
+  \param[in,out] dmy_value auxiliary field to compute the concentration of a single solute species
+ */
+void Charge_field2potential_dielectric_without_solute(double *free_charge_density,
+                                                      double *potential,
+                                                      double *eps,
+                                                      double external_e_field[]);
 
 void Init_potential_dielectric(Particle *p,
                                double *dmy_value, //working memory

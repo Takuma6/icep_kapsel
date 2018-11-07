@@ -23,6 +23,7 @@ double **work_v3, **work_v2, *work_v1;
 
 int *KX_int, *KY_int, *KZ_int;
 double *K2, *IK2;
+std::complex<double> *Shift_x, *Shift_y, *Shift_z;
 
 splineSystem** splineOblique;
 double*** uspline;
@@ -44,11 +45,15 @@ inline void Free_K(void){
   free_1d_int(KX_int);
 }
 inline void Init_K(void){
+  std::complex<double> i_unit(0,1);
   KX_int = alloc_1d_int(NX*NY*NZ_);
   KY_int = alloc_1d_int(NX*NY*NZ_);
   KZ_int = alloc_1d_int(NX*NY*NZ_);
   K2 = alloc_1d_double(NX*NY*NZ_);
   IK2 = alloc_1d_double(NX*NY*NZ_);
+  Shift_x = new std::complex<double>[NX*NY*NZ_];
+  Shift_y = new std::complex<double>[NX*NY*NZ_];
+  Shift_z = new std::complex<double>[NX*NY*NZ_];
 
   int kx, ky, kz;
   int im;
@@ -73,6 +78,9 @@ inline void Init_K(void){
 	}else{
 	  IK2[im] = 0.0;
 	}
+    Shift_x[im] = exp(0.5*i_unit*DX*(WAVE_X*(double)kx));
+    Shift_y[im] = exp(0.5*i_unit*DX*(WAVE_Y*(double)ky));
+    Shift_z[im] = exp(0.5*i_unit*DX*(WAVE_Z*(double)kz));
       }
     }
   }

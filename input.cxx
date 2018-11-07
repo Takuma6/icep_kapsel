@@ -264,7 +264,10 @@ double E_ext[DIM];
 double Frequency;
 double Angular_Frequency;
 int Dielectric;
-double eps_particle;
+int MaxIter_potential;
+double Tol_potential;
+double eps_particle_top;
+double eps_particle_bottom;
 double eps_fluid;
 
 //double kT_snap_v=0.59;
@@ -719,13 +722,22 @@ void Gourmet_file_io(const char *infile
 		    	if(str == "ON"){
 		    		Dielectric = 1;
 		    		target.down("ON");
+		    		ufin->get(target.sub("potential_iter"), MaxIter_potential);
+		    		ufout->put(target.sub("potential_iter"), MaxIter_potential);
+		    		ufres->put(target.sub("potential_iter"), MaxIter_potential);
+		    		ufin->get(target.sub("potential_tol"), Tol_potential);
+		    		ufout->put(target.sub("potential_tol"), Tol_potential);
+		    		ufres->put(target.sub("potential_tol"), Tol_potential);
 		    		ufin->get(target.sub("fluid"), eps_fluid);
 		    		ufout->put(target.sub("fluid"), eps_fluid);
 		    		ufres->put(target.sub("fluid"), eps_fluid);
-		    		ufin->get(target.sub("particle"), eps_particle);
-		    		ufout->put(target.sub("particle"), eps_particle);
-		    		ufres->put(target.sub("particle"), eps_particle);
-		    		fprintf(stderr,"#\n# eps_particle = %f, eps_fluid = %f \n", eps_particle, eps_fluid);
+		    		ufin->get(target.sub("particle_top"), eps_particle_top);
+		    		ufout->put(target.sub("particle_top"), eps_particle_top);
+		    		ufres->put(target.sub("particle_top"), eps_particle_top);
+		    		ufin->get(target.sub("particle_bottom"), eps_particle_bottom);
+		    		ufout->put(target.sub("particle_bottom"), eps_particle_bottom);
+		    		ufres->put(target.sub("particle_bottom"), eps_particle_bottom);
+		    		fprintf(stderr,"#\n# eps_particle1 = %f, eps_particle2 = %f, eps_fluid = %f \n", eps_particle_top, eps_particle_bottom, eps_fluid);
 		    		target.up();
 		    	}else if(str == "OFF"){
                     Dielectric = 0;

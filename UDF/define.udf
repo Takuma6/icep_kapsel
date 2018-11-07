@@ -80,8 +80,11 @@ constitutive_eq: {
       Dielectric_property: {
         type:select {"ON", "OFF"}
         ON:{
+          potential_iter:int "max iteration for potential calculation"
+          potential_tol:double "tolerance for potential calculation"
           fluid:double "fluid permittivity"
-          particle:double "particle permittivy"
+          particle_top:double "particle permittivy 1"
+          particle_bottom:double "particle permittivy 2"
         }
       }
       Add_salt: {

@@ -291,7 +291,10 @@ extern double E_ext[DIM];
 extern double Frequency;
 extern double Angular_Frequency;
 extern int Dielectric;
-extern double eps_particle;
+extern int MaxIter_potential;
+extern double Tol_potential;
+extern double eps_particle_top;
+extern double eps_particle_bottom;
 extern double eps_fluid;
 ////// Temp Monitor
 

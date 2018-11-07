@@ -62,8 +62,11 @@ constitutive_eq:{
     {//Dielectirc property
       "ON",                             //ON/OFF
       {//ON
+        1000,                           //MaxIter_potential
+        1.00000000000000e-006,          //Tol_potential
         1.0,                            //fluid permittivy
-        10.0                            //particle permittivity
+        10.0,                           //particle permittivity 1
+        10.0                            //particle permittivity 2
       }
     }
     {//add_salt

@@ -861,7 +861,57 @@ void Init_rho_ion(double **Concentration, Particle *p, CTime &jikan){
 }
 
 // ------------------------------------------------------------ NEW ------------------------------------------------------------
+inline void Set_uniform_ion_charge_density_salt_dielectric(double **Concentration
+            ,double *Total_solute
+            ,Particle *p){
+
+  Reset_phi(phi);
+  Make_phi_particle(phi, p);
+
+  double positive_ion_number=0.;
+  double negative_ion_number=0.;
+  double volume_phi = 0.;
+  double dmy_phi;
+  int im;
+#pragma omp parallel for reduction(+:volume_phi) private(dmy_phi,im)
+  for(int i=0;i<NX;i++){
+    for(int j=0;j<NY;j++){
+      for(int k=0;k<NZ;k++){
+        im=(i*NY*NZ_)+(j*NZ_)+k;
+        dmy_phi = phi[im];
+        volume_phi += (1.-dmy_phi);
+      }
+    }
+  }
+  double positive_ion_density = positive_ion_number / (volume_phi * DX3);
+  double negative_ion_density = negative_ion_number / (volume_phi * DX3);
+  
+  double Rho_inf = kBT * Dielectric_cst * eps_fluid/ SQ(Elementary_charge * Debye_length * RADIUS);
+  double Rho_inf_positive_ion=Rho_inf/(Valency[0]*(Valency[0]-Valency[1]));
+  double Rho_inf_negative_ion=-Rho_inf/(Valency[1]*(Valency[0]-Valency[1]));
+
+#pragma omp parallel for  
+  for(int i=0;i<NX;i++){
+    for(int j=0;j<NY;j++){
+      for(int k=0;k<NZ;k++){
+        int im=(i*NY*NZ_)+(j*NZ_)+k;
+        Concentration[0][im] = positive_ion_density + Rho_inf_positive_ion;
+        Concentration[1][im] = negative_ion_density + Rho_inf_negative_ion;
+      }
+    }
+  }
+  Total_solute[0] = Count_single_solute(Concentration[0], phi);
+  Total_solute[1] = Count_single_solute(Concentration[1], phi);
+
+  A2a_k(Concentration[0]);
+  A2a_k(Concentration[1]);
+  
+  fprintf(stderr,"# density of positive and negative ions %g %g\n", positive_ion_density + Rho_inf_positive_ion,negative_ion_density + Rho_inf_negative_ion);
+}
+
 void Init_rho_ion_dielectric(double **Concentration, Particle *p, CTime &jikan){
+  // check whether particles have surface charge or not
+  // now it's not supported to have different particle properties like some have and others don't
   if(Surface_charge[0] == 0.0){
     have_surface_charge = 0;
     for(int i=0;i<Component_Number;i++){//コロイド表面電荷は0以外に設定する
@@ -879,6 +929,11 @@ void Init_rho_ion_dielectric(double **Concentration, Particle *p, CTime &jikan){
       }
     }
   }
+  // if all particles have surface charge use just same function with previous one
+  // if not, set the uniform distribution
+  // CAUTION!!
+  // in dielectric without surface charge, n_inf is defined in the different way
+  // n_inf = eps_f * kBT /{2 * (ze*kappa*a)^2}
   if(have_surface_charge){
     Init_rho_ion(Concentration, p, jikan);
   }else{
@@ -914,7 +969,7 @@ void Init_rho_ion_dielectric(double **Concentration, Particle *p, CTime &jikan){
       fprintf(stderr,"############################ initial state for positive and negative ions\n");
       fprintf(stderr,"# radius of particle / Debye length  %g\n" ,RADIUS / Debye_length);
       {
-        Set_uniform_ion_charge_density_salt(Concentration, Total_solute, p);
+        Set_uniform_ion_charge_density_salt_dielectric(Concentration, Total_solute, p);
         fprintf(stderr,"# initialized by uniform distribution\n");
       }
       fprintf(stderr,"############################\n");

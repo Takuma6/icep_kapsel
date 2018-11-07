@@ -20,7 +20,7 @@ class output_writer {
   virtual void write_charge_field_data(double**u, double*phi, double*colloid_charge, double*solute_charge, double*potential) = 0;
   //virtual function to write field data for charged systems
   virtual void write_raw_charge_field_data(double** u, double*phi, double* colloid_charge, 
-             double* solute_charge, double* potential, double* plus_charge, double* minus_charge) = 0;
+             double* solute_charge, double* potential, double* plus_charge, double* minus_charge, double* epsilon) = 0;
 
   //virtual function to write particle data
   virtual void write_particle_data(Particle *p) = 0;

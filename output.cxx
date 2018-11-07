@@ -278,6 +278,8 @@ void Output_dielectric_charge_field_data(double** zeta,
     Make_phi_qq_particle(phi, up[0], p);
   }//print phi/charge?
 
+  Make_dielectric_field(p, up[2], phi, eps_particle_top, eps_particle_bottom, eps_fluid);
+
   if(print_field.charge){
     for(int n=0;n<N_spec;n++){
       A_k2a(Concentration[n]);
@@ -305,7 +307,7 @@ void Output_dielectric_charge_field_data(double** zeta,
     Output_avs_charge(Avs_parameters, u, phi, up[0], up[1], Potential, time);
   }else if(SW_OUTFORMAT == OUT_EXT){
 #ifdef WITH_EXTOUT
-    writer -> write_raw_charge_field_data(u, phi, up[0], up[1], Potential, Concentration[0], Concentration[1]);
+    writer -> write_raw_charge_field_data(u, phi, up[0], up[1], Potential, Concentration[0], Concentration[1], up[2]);
 #endif
   }
   //recover original state

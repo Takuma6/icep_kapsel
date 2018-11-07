@@ -62,6 +62,7 @@ extern double **work_v3, **work_v2, *work_v1;
 
 extern int *KX_int, *KY_int, *KZ_int;
 extern double *K2,*IK2;
+extern std::complex<double>  *Shift_x, *Shift_y, *Shift_z;
 
 extern splineSystem** splineOblique;
 extern double*** uspline;
@@ -836,4 +837,50 @@ inline void Truncate_two_third_rule_ooura(double *a){
     Truncate_general(a, dmy_range);
   }
 }
+
+inline void Shift_vec_fw_imag(double ** dmy_vec){
+  int im;
+  std::complex<double> dmy_x_comp, dmy_y_comp, dmy_z_comp;
+#pragma omp  for private(im, dmy_x_comp, dmy_y_comp, dmy_z_comp)
+    for(int i=0;i<NX;i++){
+      for(int j=0;j<NY;j++){
+        for(int k=0;k<HNZ_;k++){
+          im=(i*NY*NZ_)+(j*NZ_)+2*k;
+          dmy_x_comp  = complex<double>(dmy_vec[0][im], dmy_vec[0][im+1])*Shift_x[im];
+          dmy_y_comp  = complex<double>(dmy_vec[1][im], dmy_vec[1][im+1])*Shift_y[im];
+          dmy_z_comp  = complex<double>(dmy_vec[2][im], dmy_vec[2][im+1])*Shift_z[im];
+
+          dmy_vec[0][im]   = dmy_x_comp.real();
+          dmy_vec[0][im+1] = dmy_x_comp.imag();
+          dmy_vec[1][im]   = dmy_y_comp.real();
+          dmy_vec[1][im+1] = dmy_y_comp.imag();
+          dmy_vec[2][im]   = dmy_z_comp.real();
+          dmy_vec[2][im+1] = dmy_z_comp.imag();
+        }
+      }
+    }
+}
+inline void Shift_vec_bw_imag(double ** dmy_vec){
+  int im;
+  std::complex<double> dmy_x_comp, dmy_y_comp, dmy_z_comp;
+#pragma omp  for private(im, dmy_x_comp, dmy_y_comp, dmy_z_comp)
+    for(int i=0;i<NX;i++){
+      for(int j=0;j<NY;j++){
+        for(int k=0;k<HNZ_;k++){
+          im=(i*NY*NZ_)+(j*NZ_)+2*k;
+          dmy_x_comp  = complex<double>(dmy_vec[0][im], dmy_vec[0][im+1])*conj(Shift_x[im]);
+          dmy_y_comp  = complex<double>(dmy_vec[1][im], dmy_vec[1][im+1])*conj(Shift_y[im]);
+          dmy_z_comp  = complex<double>(dmy_vec[2][im], dmy_vec[2][im+1])*conj(Shift_z[im]);
+
+          dmy_vec[0][im]   = dmy_x_comp.real();
+          dmy_vec[0][im+1] = dmy_x_comp.imag();
+          dmy_vec[1][im]   = dmy_y_comp.real();
+          dmy_vec[1][im+1] = dmy_y_comp.imag();
+          dmy_vec[2][im]   = dmy_z_comp.real();
+          dmy_vec[2][im+1] = dmy_z_comp.imag();
+        }
+      }
+    }
+}
+
 #endif
