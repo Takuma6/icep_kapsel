@@ -11,6 +11,7 @@
 #include "fluid_solver.h"
 #include "solute_rhs.h"
 #include "operate_electrolyte.h"
+#include "LinearOperator.h"
 
 #include <math.h>
 #include <iostream>
@@ -18,10 +19,13 @@
 #include <unsupported/Eigen/IterativeSolvers>
 typedef Eigen::SparseMatrix<double> SpMat; // declares a column-major sparse matrix type of double
 typedef Eigen::Triplet<double> T;
+typedef Eigen::Matrix<double, Eigen::Dynamic, 1> _VectorReplacement;
+typedef Eigen::Map<_VectorReplacement> VectorReplacement;
 
 //it takes long time to compute Ax=b in an iterative way like GMRES
 //so the potential (or electric field) should be kept till the next step, computing advection-diffusion
 extern double *Potential; 
+extern double *epsilon;
 extern double **grad_epsilon; 
 extern int have_surface_charge;
 
@@ -53,6 +57,9 @@ inline void rm_external_electric_field_x(double *potential
     }
   }
 }
+
+void Interpolate_vec_on_normal_grid(double **vec);
+void Interpolate_scalar_on_staggered_grid(double **vec, double *scalar);
 
 void Make_phi_sin_primitive(Particle *p, 
                             double *phi_p,
@@ -165,8 +172,10 @@ void Charge_field2potential_dielectric(double *free_charge_density,
                                        double *eps,
                                        double external_e_field[]);
 
+void Ax(const double *x, double*Ax);
+void Build_rhs(double *rhs, double *free_charge_density, double *eps, double external_e_field[]);
 /*!
-  \brief Solve linear equation Ax=b (real space, staggered grid), ignoring solute charge
+  \brief Solve linear equation Ax=b (real space, staggered grid), with a linear operator
   \details Compute the electric potential by solving linear equation Ax=b from Poisson eq. 
   \f[
   \vec{x}=A^{-1}\vec{b}
@@ -177,17 +186,19 @@ void Charge_field2potential_dielectric(double *free_charge_density,
   \param[in,out] phi auxiliary field to compute the smooth profile
   \param[in,out] dmy_value auxiliary field to compute the concentration of a single solute species
  */
-void Charge_field2potential_dielectric_without_solute(double *free_charge_density,
-                                                      double *potential,
-                                                      double *eps,
-                                                      double external_e_field[]);
+void Charge_field2potential_dielectric_LO(double *free_charge_density,
+                                          double *potential,
+                                          double *eps,
+                                          double *rhs, //working memory
+                                          double external_e_field[]);
 
 void Init_potential_dielectric(Particle *p,
-                               double *dmy_value, //working memory
+                               double *dmy_value1, //working memory
+                               double *dmy_value2, //working memory
                                double **conc_k,
                                double *free_charge_density, // working memory
                                double *potential,
-                               double *epsilon, // working memory
+                               double *epsilon, 
                                const CTime &jikan);
 
 void Make_Maxwell_force_x_on_fluid(double **force,
@@ -195,8 +206,35 @@ void Make_Maxwell_force_x_on_fluid(double **force,
                                    double **conc_k,
                                    double *free_charge_density, // working memory
                                    double *potential,
-                                   double *epsilon, // working memory
-                                   double **grad_epsilon, // working memory
+                                   double *epsilon, 
+                                   double **grad_epsilon, 
                                    const CTime &jikan);
+
+template<typename T>inline void Copy_vec_to_eigenvec_1d(const double *vec, T& eigenvec){
+  int im, im_;
+#pragma omp parallel for private(im_,im)
+  for(int i=0;i<NX;i++){
+    for(int j=0;j<NY;j++){
+      for(int k=0;k<NZ;k++){
+        im_ = (i*NY*NZ_)+(j*NZ_)+k;
+        im  = (i*NY*NZ )+(j*NZ )+k;
+        eigenvec[im] = vec[im_];
+      }
+    }
+  }
+}
+template<typename T>inline void Copy_eigenvec_to_vec_1d(const T eigenvec, double *vec){
+  int im, im_;
+#pragma omp parallel for private(im_,im)
+  for(int i=0;i<NX;i++){
+    for(int j=0;j<NY;j++){
+      for(int k=0;k<NZ;k++){
+        im_ = (i*NY*NZ_)+(j*NZ_)+k;
+        im  = (i*NY*NZ )+(j*NZ )+k;
+        vec[im_] = eigenvec[im];
+      }
+    }
+  }
+}
 
 #endif

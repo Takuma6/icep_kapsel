@@ -262,7 +262,8 @@ void Output_charge_field_data(double** zeta,
 void Output_dielectric_charge_field_data(double** zeta,
             double* uk_dc,
             double** Concentration,
-            double* Potential,
+            double* potential,
+            double** f_maxwell,
             Particle* p,
             const CTime &time){
   if(print_field.none) return;
@@ -304,10 +305,10 @@ void Output_dielectric_charge_field_data(double** zeta,
   }
   //Writers
   if(SW_OUTFORMAT == OUT_AVS_BINARY || SW_OUTFORMAT == OUT_AVS_ASCII){
-    Output_avs_charge(Avs_parameters, u, phi, up[0], up[1], Potential, time);
+    Output_avs_charge(Avs_parameters, u, phi, up[0], up[1], potential, time);
   }else if(SW_OUTFORMAT == OUT_EXT){
 #ifdef WITH_EXTOUT
-    writer -> write_raw_charge_field_data(u, phi, up[0], up[1], Potential, Concentration[0], Concentration[1], up[2]);
+    writer -> write_raw_charge_field_data(u, phi, up[0], up[1], potential, Concentration[0], Concentration[1], up[2], f_maxwell);
 #endif
   }
   //recover original state

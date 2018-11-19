@@ -260,12 +260,11 @@ inline void Rhs_NS_Nernst_Planck(Particle *p
   	A_k2da_k(Potential, grad_potential);
     Shift_vec_fw_imag(grad_potential);
   	A_k2a(Potential);
-    Interpolate_vec_on_normal_grid(grad_potential);
     if(External_field){
       Add_constant_field_k(grad_potential, E_ext, jikan);
     }
     U_k2u(grad_potential);
-
+    Interpolate_vec_on_normal_grid(grad_potential);
   }else{ // potential gradient in real space
     Conc_k2charge_field(p, concentration_k, u[0], u[1], u[2]);
     A2a_k(u[0]);

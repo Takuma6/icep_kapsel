@@ -8,17 +8,21 @@
 #include "operate_dielectric.h"
 
 double *Potential;
+double *epsilon;
 double **grad_epsilon; 
 int have_surface_charge;
 Eigen::VectorXd b;                   // the right hand side-vector resulting from the constraints
 Eigen::VectorXd dmy_eps;             // this is not a cool way, should be modified
 Eigen::VectorXd x_ans;
+//MatrixReplacement A_LO; 
 
 
 void Mem_alloc_potential(void){
   Potential    = alloc_1d_double(NX*NY*NZ_);
+  epsilon      = alloc_1d_double(NX*NY*NZ_);
   grad_epsilon = (double **) malloc(sizeof(double *) * DIM);
   for(int d=0; d<DIM; d++) grad_epsilon[d] = alloc_1d_double(NX*NY*NZ_);
+  //A_LO.attachMatrix(NX*NY*NZ, &Ax);
   b            = Eigen::VectorXd::Zero(NX*NY*NZ);             // the right hand side-vector resulting from the constraints
   dmy_eps      = Eigen::VectorXd::Zero(NX*NY*NZ);             // this is not a cool way, should be modified
   x_ans        = Eigen::VectorXd::Zero(NX*NY*NZ);
@@ -26,6 +30,52 @@ void Mem_alloc_potential(void){
 void print_error_index(int index_here, int range){
   if(index_here<0 || index_here>=range)
     fprintf(stderr,"# index is out of range\n");
+}
+
+void Interpolate_vec_on_normal_grid(double **vec){
+  int im;
+  double vec_x_fw, vec_y_fw, vec_z_fw; 
+  double vec_x_bw, vec_y_bw, vec_z_bw; 
+  Reset_u(work_v3);
+  Copy_v3(work_v3, vec);
+#pragma omp parallel for private(im, vec_x_fw, vec_y_fw, vec_z_fw, vec_x_bw, vec_y_bw, vec_z_bw) 
+  for(int i=0; i<NX; i++){
+    for(int j=0; j<NY; j++){
+      for(int k=0; k<NZ; k++){
+        im=(i*NY*NZ_)+(j*NZ_)+k;
+        vec_x_fw = 0.5*work_v3[0][im];
+        vec_x_bw = 0.5*work_v3[0][extract_id(i-1,j,k)];
+        vec_y_fw = 0.5*work_v3[1][im];
+        vec_y_bw = 0.5*work_v3[1][extract_id(i,j-1,k)];
+        vec_z_fw = 0.5*work_v3[2][im];
+        vec_z_bw = 0.5*work_v3[2][extract_id(i,j,k-1)];
+        vec[0][im] = (vec_x_fw + vec_x_bw);
+        vec[1][im] = (vec_y_fw + vec_y_bw);
+        vec[2][im] = (vec_z_fw + vec_z_bw);
+      }
+    }
+  }
+}
+
+void Interpolate_scalar_on_staggered_grid(double **vec, double *scalar, double factor[]){
+  int im;
+  double scalar_x_fw, scalar_y_fw, scalar_z_fw, scalar_newtral; 
+  Reset_u(vec);
+#pragma omp parallel for private(im, scalar_x_fw, scalar_y_fw, scalar_z_fw, scalar_newtral, factor) 
+  for(int i=0; i<NX; i++){
+    for(int j=0; j<NY; j++){
+      for(int k=0; k<NZ; k++){
+        im=(i*NY*NZ_)+(j*NZ_)+k;
+        scalar_newtral = 0.5*scalar[im];                         //(i    ,j    ,k    )
+        scalar_x_fw    = 0.5*scalar[extract_id(i+1,j,k)];        //(i+1  ,j    ,k    )
+        scalar_y_fw    = 0.5*scalar[extract_id(i,j+1,k)];        //(i    ,j+1  ,k    )
+        scalar_z_fw    = 0.5*scalar[extract_id(i,j,k+1)];        //(i    ,j    ,k+1  )
+        vec[0][im] = (scalar_x_fw + scalar_newtral)*factor[0];   //(i+1/2,j    ,k    )
+        vec[1][im] = (scalar_y_fw + scalar_newtral)*factor[1];   //(i    ,j+1/2,k    )
+        vec[2][im] = (scalar_z_fw + scalar_newtral)*factor[2];   //(i    ,j    ,k+1/2)
+      }
+    }
+  }
 }
 
 void Make_phi_sin_primitive(Particle *p, 
@@ -91,18 +141,20 @@ void Conc_k2charge_field_no_surfase_charge(Particle *p,
                                            double *phi, // working memory
                                            double *dmy_value){ // working memory
 	int im;
+  double dmy_phi_r;
 	double dmy_conc;
-  Reset_phi(phi);
-  Make_phi_particle(phi, p);
+  //Reset_phi(phi);
+  //Make_phi_particle(phi, p);
   for(int n=0;n< N_spec;n++){
     A_k2a_out(conc_k[n], dmy_value);
-#pragma omp parallel for private(im,dmy_conc)
+#pragma omp parallel for private(im,dmy_phi_r,dmy_conc)
     for(int i=0;i<NX;i++){
 	    for(int j=0;j<NY;j++){
 	      for(int k=0;k<NZ;k++){
 		      im=(i*NY*NZ_)+(j*NZ_)+k;
-	        dmy_conc = dmy_value[im];
-	        charge_density[im] += Valency_e[n] * dmy_conc * (1.- phi[im]);
+          dmy_phi_r  = 1.- phi[im];
+	        dmy_conc   = dmy_value[im];
+	        charge_density[im] += Valency_e[n] * dmy_conc * dmy_phi_r;
 	      }
       }
     }
@@ -178,11 +230,11 @@ void Make_janus_permittivity_dielectric(Particle *p,
     double eps_ave = 0.5*(eps_p_top + eps_p_bottom)*Dielectric_cst;
     double eps_delta = 0.5*(eps_p_top - eps_p_bottom)*Dielectric_cst;
     double dmy_tanh;
-    double sharpness = 10;
+    double sharpness = 1/DX;
     int im;
 
 #pragma omp parallel for \
-  private(xp,x_int,residue,sw_in_cell,r_mesh,r,x,janus_r,dmyR,dmy_phi,dmy_tanh,im) 
+  private(xp,x_int,residue,sw_in_cell,r_mesh,r,x,janus_normal,janus_r,dmyR,dmy_phi,dmy_tanh,im) 
     for(int n = 0; n < Particle_Number; n++){
       for (int d = 0; d < DIM; d++) {
         xp[d] = p[n].x[d];
@@ -208,8 +260,9 @@ void Make_janus_permittivity_dielectric(Particle *p,
 #pragma omp atomic
         phi[im] += dmy_phi;
 
-        dmy_tanh  = std::tanh(sharpness*dmy_phi*janus_r);
-        eps[im]   = dmy_phi*(eps_ave + eps_delta*dmy_tanh);
+        dmy_tanh  = std::tanh(sharpness*janus_r);
+#pragma omp atomic
+        eps[im]  += dmy_phi*(eps_ave + eps_delta*dmy_tanh);
         
       }// mesh
     }//Particle_number
@@ -239,7 +292,6 @@ void Make_dielectric_field(Particle *p,
         for(int k=0;k<NZ;k++){
           im=(i*NY*NZ_)+(j*NZ_)+k;
           dmy_phi = 1-phi_p[im];
-#pragma omp atomic
           eps[im] += eps_f*dmy_phi*Dielectric_cst;
         }
       }
@@ -322,10 +374,10 @@ void Charge_field2potential_dielectric(double *free_charge_density,
     }
   }
   buildProblem(coefficients, b, dmy_eps, external_e_field, m);
-  SpMat A(m,m);
-  A.setFromTriplets(coefficients.begin(), coefficients.end());
+  SpMat A_FD(m,m);
+  A_FD.setFromTriplets(coefficients.begin(), coefficients.end());
   // solve
-  Eigen::GMRES<SpMat> gmres(A);
+  Eigen::GMRES<SpMat> gmres(A_FD);
   gmres.setMaxIterations(MaxIter_potential);
   gmres.setTolerance(Tol_potential);
   gmres.solveWithGuess(b, x_ans);
@@ -334,7 +386,7 @@ void Charge_field2potential_dielectric(double *free_charge_density,
     //fprintf(stderr,"# iterations     :%d\n",gmres.iterations());
     fprintf(stderr,"# estimated error:%e\n",gmres.error());
   }
-#pragma omp parallel for private(im, im_)
+#pragma omp parallel for private(im_, im)
   for(int i=0;i<NX;i++){
     for(int j=0;j<NY;j++){
       for(int k=0;k<NZ;k++){
@@ -346,55 +398,145 @@ void Charge_field2potential_dielectric(double *free_charge_density,
   }
 }
 
-void Charge_field2potential_dielectric_without_solute(double *free_charge_density,
-                                       double *potential,
-                                       double *eps,
-                                       double external_e_field[]){
-  int m = NX*NY*NZ;
+void test_ax(double *x, double *Ax){
+  Reset_phi_u(work_v1, work_v3);
+  Copy_v1(work_v1, x);
+  A2a_k(work_v1);
+  A_k2da_k(work_v1, work_v3);
+  Shift_vec_fw_imag(work_v3);
+  U_k2u(work_v3);
   int im, im_;
-  std::vector<T> coefficients;            // list of non-zeros coefficients
+  double eps_neutral, eps_x_fw, eps_y_fw, eps_z_fw;
+#pragma omp parallel for private(im, eps_neutral, eps_x_fw, eps_y_fw, eps_z_fw)
   for(int i=0;i<NX;i++){
     for(int j=0;j<NY;j++){
       for(int k=0;k<NZ;k++){
-        im  = i*NY*NZ  + j*NZ  +k;
-        im_ =(i*NY*NZ_)+(j*NZ_)+k;
-        print_error_index(im , NX*NY*NZ );
-        print_error_index(im_, NX*NY*NZ_);
-        b(im)       = 0.0;
-        dmy_eps(im) = eps[im_];
-        x_ans(im)   = potential[im_];
+        im=(i*NY*NZ_)+(j*NZ_)+k;
+        eps_neutral = epsilon[im];
+        eps_x_fw    = epsilon[extract_id(i+1,j,k)];
+        eps_y_fw    = epsilon[extract_id(i,j+1,k)];
+        eps_z_fw    = epsilon[extract_id(i,j,k+1)];
+        work_v3[0][im] *= 0.5*(eps_x_fw+eps_neutral);
+        work_v3[1][im] *= 0.5*(eps_y_fw+eps_neutral);
+        work_v3[2][im] *= 0.5*(eps_z_fw+eps_neutral);
       }
     }
   }
-  buildProblem(coefficients, b, dmy_eps, external_e_field, m);
-  SpMat A(m,m);
-  A.setFromTriplets(coefficients.begin(), coefficients.end());
-  // solve
-  Eigen::GMRES<SpMat> gmres(A);
-  gmres.setMaxIterations(MaxIter_potential);
-  gmres.setTolerance(Tol_potential);
-  gmres.solveWithGuess(b, x_ans);
-  x_ans = gmres.solve(b);
-  if(gmres.iterations()==MaxIter_potential){
-    //fprintf(stderr,"# iterations     :%d\n",gmres.iterations());
-    fprintf(stderr,"# without solute, estimated error:%e\n",gmres.error());
-  }
+  U2u_k(work_v3);
+  U_k2divergence_k_shift(work_v3, work_v1);
+  A_k2a(work_v1);
+#pragma omp parallel for private(im, im_)
   for(int i=0;i<NX;i++){
     for(int j=0;j<NY;j++){
       for(int k=0;k<NZ;k++){
-        im_ =(i*NY*NZ_)+(j*NZ_)+k;
-        potential[im_] += x_ans(im);
+        im =(i*NY*NZ )+(j*NZ )+k;
+        im_=(i*NY*NZ_)+(j*NZ_)+k;
+        Ax[im_] = work_v1[im_];
       }
     }
   }
 }
 
+void Ax(const double *x, double*Ax){
+  Reset_phi_u(work_v1, work_v3);
+  Copy_eigenvec_to_vec_1d(x, work_v1);
+  A2a_k(work_v1);
+  A_k2da_k(work_v1, work_v3);
+  Shift_vec_fw_imag(work_v3);
+  U_k2u(work_v3);
+  int im, im_;
+  double eps_neutral, eps_x_fw, eps_y_fw, eps_z_fw;
+#pragma omp parallel for private(im, eps_neutral, eps_x_fw, eps_y_fw, eps_z_fw)
+  for(int i=0;i<NX;i++){
+    for(int j=0;j<NY;j++){
+      for(int k=0;k<NZ;k++){
+        im=(i*NY*NZ_)+(j*NZ_)+k;
+        eps_neutral = epsilon[im];
+        eps_x_fw    = epsilon[extract_id(i+1,j,k)];
+        eps_y_fw    = epsilon[extract_id(i,j+1,k)];
+        eps_z_fw    = epsilon[extract_id(i,j,k+1)];
+        work_v3[0][im] *= 0.5*(eps_x_fw+eps_neutral);
+        work_v3[1][im] *= 0.5*(eps_y_fw+eps_neutral);
+        work_v3[2][im] *= 0.5*(eps_z_fw+eps_neutral);
+      }
+    }
+  }
+  U2u_k(work_v3);
+  U_k2divergence_k_shift(work_v3, work_v1);
+  A_k2a(work_v1);
+#pragma omp parallel for private(im, im_)
+  for(int i=0;i<NX;i++){
+    for(int j=0;j<NY;j++){
+      for(int k=0;k<NZ;k++){
+        im =(i*NY*NZ )+(j*NZ )+k;
+        im_=(i*NY*NZ_)+(j*NZ_)+k;
+        Ax[im] = work_v1[im_];
+      }
+    }
+  }
+}
+
+void Build_rhs(double *rhs, double *free_charge_density, double *eps, double external_e_field[]){
+  int im;
+  Reset_phi(rhs);
+  Interpolate_scalar_on_staggered_grid(work_v3, eps, external_e_field);
+  U2u_k(work_v3);
+  U_k2divergence_k_shift(work_v3, rhs);
+  A_k2a(rhs);
+#pragma omp parallel for private(im)
+    for(int i=0;i<NX;i++){
+      for(int j=0;j<NY;j++){
+        for(int k=0;k<NZ_;k++){
+          im = (i*NY*NZ_)+(j*NZ_)+k;
+          rhs[im] -= free_charge_density[im];
+        }
+      }
+    }
+}
+
+void Charge_field2potential_dielectric_LO(double *free_charge_density,
+                                       double *potential,
+                                       double *eps,
+                                       double *rhs, //working memory
+                                       double external_e_field[]){
+  Build_rhs(rhs, free_charge_density, eps, external_e_field);
+  Copy_vec_to_eigenvec_1d(rhs, b);
+  Copy_vec_to_eigenvec_1d(potential, x_ans);
+  int im, im_;
+#pragma omp parallel for private(im, im_)
+  for(int i=0;i<NX;i++){
+    for(int j=0;j<NY;j++){
+      for(int k=0;k<NZ;k++){
+        im  = i*NY*NZ  + j*NZ  +k;
+        im_ =(i*NY*NZ_)+(j*NZ_)+k;
+        b(im)       = rhs[im_];
+        x_ans(im)   = potential[im_];
+      }
+    }
+  }
+  Eigen::ConjugateGradient<MatrixReplacement, Eigen::Lower | Eigen::Upper, Eigen::IdentityPreconditioner> solver;
+  //Eigen::BiCGSTAB<MatrixReplacement, Eigen::IdentityPreconditioner > solver;
+  //Eigen::GMRES<MatrixReplacement, Eigen::IdentityPreconditioner > solver;
+  MatrixReplacement A; A.attachMatrix(NX*NY*NZ, &Ax);
+  solver.compute(A);
+  solver.setTolerance(Tol_potential); 
+  solver.setMaxIterations(MaxIter_potential);
+  solver.solveWithGuess(b, x_ans);
+  x_ans = solver.solve(b);
+  if(solver.iterations()==MaxIter_potential){
+    fprintf(stderr,"# iterations     :%d\n",solver.iterations());
+    fprintf(stderr,"# estimated error:%e\n",solver.error());
+  }
+  Copy_eigenvec_to_vec_1d(x_ans, potential);
+}
+
 void Init_potential_dielectric(Particle *p,
-                               double *dmy_value, //working memory
+                               double *dmy_value1, //working memory
+                               double *dmy_value2, //working memory
                                double **conc_k,
                                double *free_charge_density, // working memory
                                double *potential,
-                               double *epsilon, // working memory
+                               double *epsilon, 
                                const CTime &jikan){ 
   double external[DIM];
   for(int d=0;d<DIM;d++){
@@ -404,40 +546,26 @@ void Init_potential_dielectric(Particle *p,
       external[d] *= sin(Angular_Frequency * time);
     }
   }
-  // fill with 0 as as initial guess x0
-  /*
-  for(int i=0;i<NX;i++){
-    for(int j=0;j<NY;j++){
-      for(int k=0;k<NZ;k++){
-        int im=(i*NY*NZ_)+(j*NZ_)+k;
-        potential[im] = 0.0;
-      }
-    }
-  }
-  */
   
   // compute free charge density, assuming particles do not have initial charges
   fprintf(stderr,"# calculate an initial value of Potential\n");
   fprintf(stderr,"# set max iterations : %d\n", MaxIter_potential);
   fprintf(stderr,"# set tolerance : %e\n", Tol_potential);
   if(have_surface_charge){
-    Conc_k2charge_field(p, conc_k, free_charge_density, dmy_value, epsilon);
-    Make_dielectric_field(p, epsilon, dmy_value, eps_particle_top, eps_particle_bottom, eps_fluid);
+    Make_dielectric_field(p, epsilon, dmy_value1, eps_particle_top, eps_particle_bottom, eps_fluid);
+    Conc_k2charge_field(p, conc_k, free_charge_density, dmy_value1, dmy_value2);
     //double dmy_external[DIM] = {0.0, 0.0, 0.0};
     Charge_field2potential_dielectric(free_charge_density, potential, epsilon, external);
-    //Charge_field2potential_dielectric_without_solute(free_charge_density, potential, epsilon, external);
+    //Charge_field2potential_dielectric_LO(free_charge_density, potential, epsilon, dmy_value1, external);
     //rm_external_electric_field_x(potential, jikan);
   }else{
-    Conc_k2charge_field_no_surfase_charge(p, conc_k, free_charge_density, dmy_value, epsilon);
-    Make_dielectric_field(p, epsilon, dmy_value, eps_particle_top, eps_particle_bottom, eps_fluid);
-    Charge_field2potential_dielectric(free_charge_density, potential, epsilon, external);
+    Make_dielectric_field(p, epsilon, dmy_value1, eps_particle_top, eps_particle_bottom, eps_fluid);
+    Conc_k2charge_field_no_surfase_charge(p, conc_k, free_charge_density, dmy_value1, dmy_value2);
+    //Charge_field2potential_dielectric(free_charge_density, potential, epsilon, external);
+    Charge_field2potential_dielectric_LO(free_charge_density, potential, epsilon, dmy_value1, external);
   }
-  //A2a_k_out(free_charge_density, potential);
-  //Charge_field_k2Coulomb_potential_k_PBC(potential);
-  //A_k2a(potential);
-  // compute the non-uniform dielectric field 'ep' and the gradient of it, 'dep'
   fprintf(stderr,"# solved\n");
-  fprintf(stderr,"############################");
+  fprintf(stderr,"############################\n");
 }
 
 void Make_Maxwell_force_x_on_fluid(double **force,
@@ -445,7 +573,7 @@ void Make_Maxwell_force_x_on_fluid(double **force,
                                    double **conc_k,
                                    double *free_charge_density, // working memory
                                    double *potential,
-                                   double *epsilon, // working memory
+                                   double *epsilon, 
                                    double **grad_epsilon, 
                                    const CTime &jikan){
 
@@ -462,25 +590,26 @@ void Make_Maxwell_force_x_on_fluid(double **force,
   // compute free charge density, assuming particles do not have initial charges
   if(have_surface_charge){
     // calculate potential from surface charge
-    Conc_k2charge_field(p, conc_k, free_charge_density, force[0], force[1]);
     Make_dielectric_field(p, epsilon, force[0], eps_particle_top, eps_particle_bottom, eps_fluid);
+    Conc_k2charge_field(p, conc_k, free_charge_density, force[0], force[1]);
     //double dmy_external[DIM] = {0.0, 0.0, 0.0};
     Charge_field2potential_dielectric(free_charge_density, potential, epsilon, external);
-    //Charge_field2potential_dielectric_without_solute(free_charge_density, potential, epsilon, external);
+    //Charge_field2potential_dielectric_LO(free_charge_density, potential, epsilon, force[2], external);
     //rm_external_electric_field_x(potential, jikan);
   }else{
-    Conc_k2charge_field_no_surfase_charge(p, conc_k, free_charge_density, force[0], force[1]);
     // compute the non-uniform dielectric field 'ep' and the gradient of it, 'dep'
     Make_dielectric_field(p, epsilon, force[0], eps_particle_top, eps_particle_bottom, eps_fluid);
+    Conc_k2charge_field_no_surfase_charge(p, conc_k, free_charge_density, force[0], force[1]);
     // poisson solver in a non-uniform dielectric
-    Charge_field2potential_dielectric(free_charge_density, potential, epsilon, external);
+    //Charge_field2potential_dielectric(free_charge_density, potential, epsilon, external);
+    Charge_field2potential_dielectric_LO(free_charge_density, potential, epsilon, force[2], external);
   }
 
   // compute the gradient of the permittivity field on the staggered grid
   {
     A2a_k(epsilon);
     A_k2da_k(epsilon, grad_epsilon);
-    Shift_vec_fw_imag(grad_epsilon);
+    Shift_vec_fw_imag(grad_epsilon); // shift to staggered
     A_k2a(epsilon);
     U_k2u(grad_epsilon);
   }
@@ -488,7 +617,7 @@ void Make_Maxwell_force_x_on_fluid(double **force,
   {
     A2a_k(potential);
     A_k2da_k(potential, force);
-    Shift_vec_fw_imag(force);
+    Shift_vec_fw_imag(force); // shift to staggered
     A_k2a(potential);
     U_k2u(force);
   }
@@ -498,42 +627,82 @@ void Make_Maxwell_force_x_on_fluid(double **force,
   double electric_field_x_fw, electric_field_y_fw, electric_field_z_fw;
   double electric_field_x_bw, electric_field_y_bw, electric_field_z_bw;
   double electric_field_square;
-  double rho_free_interpolate;
-  double E2_interpolate;
+  double rho_free_fw, rho_free_bw, rho_free;
+  double E2_fw, E2_bw, E2;
 
-#pragma omp parallel
-  {
-//#pragma omp parallel for private(im,electric_field)
-#pragma omp  for private(im, electric_field_x_fw, electric_field_y_fw, electric_field_z_fw, \
-                             electric_field_x_bw, electric_field_y_bw, electric_field_z_bw, \
-                             electric_field_square)
-    for(int i=0;i<NX;i++){
-      for(int j=0;j<NY;j++){
-        for(int k=0;k<NZ;k++){
-          im=(i*NY*NZ_)+(j*NZ_)+k;
-          electric_field_x_fw = -force[0][im];                   //(i+1/2,j    ,k    )
-          electric_field_y_fw = -force[1][im];                   //(i    ,j+1/2,k    )
-          electric_field_z_fw = -force[2][im];                   //(i    ,j    ,k+1/2)
-          electric_field_x_bw = -force[0][extract_id(i-1,j,k)];  //(i-1/2,j    ,k    )
-          electric_field_y_bw = -force[1][extract_id(i,j-1,k)];  //(i    ,j-1/2,k    )
-          electric_field_z_bw = -force[2][extract_id(i,j,k-1)];  //(i    ,j    ,k-1/2)
-          if(External_field){
-            electric_field_x_fw += external[0];
-            electric_field_y_fw += external[1];
-            electric_field_z_fw += external[2];
-            electric_field_x_bw += external[0];
-            electric_field_y_bw += external[1];
-            electric_field_z_bw += external[2];
-          }
-          electric_field_square =  (SQ(electric_field_x_fw) + SQ(electric_field_x_bw))/2.0
-                                  +(SQ(electric_field_y_fw) + SQ(electric_field_y_bw))/2.0
-                                  +(SQ(electric_field_z_fw) + SQ(electric_field_z_bw))/2.0;
-          work_v1[im] = electric_field_square;
+#pragma omp parallel for private(im, electric_field_x_fw, electric_field_y_fw, electric_field_z_fw, \
+                                     electric_field_x_bw, electric_field_y_bw, electric_field_z_bw, \
+                                     electric_field_square)
+  for(int i=0;i<NX;i++){
+    for(int j=0;j<NY;j++){
+      for(int k=0;k<NZ;k++){
+        im=(i*NY*NZ_)+(j*NZ_)+k;
+        electric_field_x_fw = -force[0][im];                   //(i+1/2,j    ,k    )
+        electric_field_y_fw = -force[1][im];                   //(i    ,j+1/2,k    )
+        electric_field_z_fw = -force[2][im];                   //(i    ,j    ,k+1/2)
+        electric_field_x_bw = -force[0][extract_id(i-1,j,k)];  //(i-1/2,j    ,k    )
+        electric_field_y_bw = -force[1][extract_id(i,j-1,k)];  //(i    ,j-1/2,k    )
+        electric_field_z_bw = -force[2][extract_id(i,j,k-1)];  //(i    ,j    ,k-1/2)
+        if(External_field){
+          electric_field_x_fw += external[0];
+          electric_field_y_fw += external[1];
+          electric_field_z_fw += external[2];
+          electric_field_x_bw += external[0];
+          electric_field_y_bw += external[1];
+          electric_field_z_bw += external[2];
         }
+        electric_field_square  = SQ((electric_field_x_fw + electric_field_x_bw)/2.0) + SQ((electric_field_y_fw + electric_field_y_bw)/2.0) + SQ((electric_field_z_fw + electric_field_z_bw)/2.0);
+        //electric_field_square  = (SQ(electric_field_x_fw) + SQ(electric_field_x_bw))/2.0
+        //                        +(SQ(electric_field_y_fw) + SQ(electric_field_y_bw))/2.0
+        //                        +(SQ(electric_field_z_fw) + SQ(electric_field_z_bw))/2.0;
+        work_v1[im] = electric_field_square;
       }
     }
+  }
+/*
+  {
+    A2a_k(potential);
+    A_k2da_k(potential, force);
+    Shift_vec_fw_imag(force); // shift to staggered
+    U_k2u(force);
+  }
+  Reset_phi(work_v1);
+  Interpolate_vec_on_normal_grid(force);
 
-#pragma omp  for private(im, electric_field_x_fw, rho_free_interpolate, E2_interpolate)
+  int im;
+  double electric_field_x_fw, electric_field_y_fw, electric_field_z_fw;
+  double electric_field_square;
+  double rho_free_fw, rho_free_bw, rho_free;
+  double E2_fw, E2_bw, E2;
+
+#pragma omp parallel for private(im, electric_field_x_fw, electric_field_y_fw, electric_field_z_fw, electric_field_square)
+  for(int i=0;i<NX;i++){
+    for(int j=0;j<NY;j++){
+      for(int k=0;k<NZ;k++){
+        im=(i*NY*NZ_)+(j*NZ_)+k;
+        electric_field_x_fw = -force[0][im];
+        electric_field_y_fw = -force[1][im];
+        electric_field_z_fw = -force[2][im];
+        if(External_field){
+          electric_field_x_fw += external[0];
+          electric_field_y_fw += external[1];
+          electric_field_z_fw += external[2];
+        }
+        electric_field_square  = SQ(electric_field_x_fw) + SQ(electric_field_y_fw) + SQ(electric_field_z_fw);
+        work_v1[im] = electric_field_square;
+      }
+    }
+  }
+  {
+    A_k2da_k(potential, force);
+    Shift_vec_fw_imag(force); // shift to staggered
+    A_k2a(potential);
+    U_k2u(force);
+  }
+*/
+#pragma omp parallel
+  {
+#pragma omp for private(im, electric_field_x_fw, rho_free_fw, rho_free_bw, rho_free, E2_fw, E2_bw, E2)
     for(int i=0;i<NX;i++){
       for(int j=0;j<NY;j++){
         for(int k=0;k<NZ;k++){
@@ -542,13 +711,17 @@ void Make_Maxwell_force_x_on_fluid(double **force,
           if(External_field){
             electric_field_x_fw += external[0];
           }
-          rho_free_interpolate = (free_charge_density[im] + free_charge_density[extract_id(i+1,j,k)])/2.0;
-          E2_interpolate = (work_v1[im] + work_v1[extract_id(i+1,j,k)])/2.0;
-          force[0][im] = rho_free_interpolate * electric_field_x_fw - E2_interpolate * grad_epsilon[0][im]/2.0;
+          rho_free_fw = 0.5*free_charge_density[extract_id(i+1,j,k)];
+          rho_free_bw = 0.5*free_charge_density[im];
+          rho_free    = (rho_free_bw + rho_free_fw);
+          E2_fw = 0.5*work_v1[extract_id(i+1,j,k)];
+          E2_bw = 0.5*work_v1[im];
+          E2    = E2_bw + E2_fw;
+          force[0][im] = rho_free * electric_field_x_fw - E2 * grad_epsilon[0][im]/2.0;
         }
       }
     }
-#pragma omp  for private(im, electric_field_y_fw, rho_free_interpolate, E2_interpolate)
+#pragma omp for private(im, electric_field_y_fw, rho_free_fw, rho_free_bw, rho_free, E2_fw, E2_bw, E2)
     for(int i=0;i<NX;i++){
       for(int j=0;j<NY;j++){
         for(int k=0;k<NZ;k++){
@@ -557,13 +730,17 @@ void Make_Maxwell_force_x_on_fluid(double **force,
           if(External_field){
             electric_field_y_fw += external[1];
           }
-          rho_free_interpolate = (free_charge_density[im] + free_charge_density[extract_id(i,j+1,k)])/2.0;
-          E2_interpolate = (work_v1[im] + work_v1[extract_id(i,j+1,k)])/2.0;
-          force[1][im] = rho_free_interpolate * electric_field_y_fw - E2_interpolate * grad_epsilon[1][im]/2.0;
+          rho_free_fw = 0.5*free_charge_density[extract_id(i,j+1,k)];
+          rho_free_bw = 0.5*free_charge_density[im];
+          rho_free    = (rho_free_bw + rho_free_fw);
+          E2_fw = 0.5*work_v1[extract_id(i,j+1,k)];
+          E2_bw = 0.5*work_v1[im];
+          E2    = E2_bw + E2_fw;
+          force[1][im] = rho_free * electric_field_y_fw - E2 * grad_epsilon[1][im]/2.0;
         }
       }
     }
-#pragma omp  for private(im, electric_field_z_fw, rho_free_interpolate, E2_interpolate)
+#pragma omp for private(im, electric_field_z_fw, rho_free_fw, rho_free_bw, rho_free, E2_fw, E2_bw, E2)
     for(int i=0;i<NX;i++){
       for(int j=0;j<NY;j++){
         for(int k=0;k<NZ;k++){
@@ -572,16 +749,23 @@ void Make_Maxwell_force_x_on_fluid(double **force,
           if(External_field){
             electric_field_z_fw += external[2];
           }
-          rho_free_interpolate = (free_charge_density[im] + free_charge_density[extract_id(i,j,k+1)])/2.0;
-          E2_interpolate = (work_v1[im] + work_v1[extract_id(i,j,k+1)])/2.0;
-          force[2][im] = rho_free_interpolate * electric_field_z_fw - E2_interpolate * grad_epsilon[2][im]/2.0;
+          rho_free_fw = 0.5*free_charge_density[extract_id(i,j,k+1)];
+          rho_free_bw = 0.5*free_charge_density[im];
+          rho_free    = (rho_free_bw + rho_free_fw);
+          E2_fw = 0.5*work_v1[extract_id(i,j,k+1)];
+          E2_bw = 0.5*work_v1[im];
+          E2    = E2_bw + E2_fw;
+          force[2][im] = rho_free * electric_field_z_fw - E2 * grad_epsilon[2][im]/2.0;
         }
       }
     }
-
-    U2u_k(force);
-    Shift_vec_bw_imag(force);
-    U_k2u(force);
-
   }
+  //recover
+  //Interpolate_vec_on_normal_grid(grad_epsilon);
+  Interpolate_vec_on_normal_grid(force);
+  Reset_u(grad_epsilon);
+  Copy_v3(grad_epsilon, force);
+  //Copy_v1(grad_epsilon[2], work_v1);
+  Build_rhs(grad_epsilon[0], free_charge_density, epsilon, external);
+  test_ax(potential, grad_epsilon[1]);
 }

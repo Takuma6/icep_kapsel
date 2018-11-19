@@ -140,7 +140,7 @@ inline double Phi_compact_sin(const double &x
 			      ,const double radius = RADIUS
 			      ){
     double dmy_x = radius - x;
-    if(fabs(dmy_x)<HXI){
+    if(fabs(dmy_x)<=HXI){
 	return 0.5*sin(M_PI*dmy_x/XI)+0.5;
     }else{
 	if(dmy_x>HXI){

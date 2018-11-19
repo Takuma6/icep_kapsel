@@ -26,24 +26,6 @@ inline int extract_id(int loc_x, int loc_y, int loc_z){
   return im;
 }
 
-inline void Interpolate_vec_on_normal_grid(double **vec){
-  int im, im_x_bw, im_y_bw, im_z_bw;
-#pragma omp parallel for private(im) 
-  for(int i; i<NX; i++){
-    for(int j; j<NY; j++){
-      for(int k; k<NZ; k++){
-        im=(i*NY*NZ_)+(j*NZ_)+k;
-        im_x_bw = extract_id(i-1,j,k);
-        im_y_bw = extract_id(i,j-1,k);
-        im_z_bw = extract_id(i,j,k-1);
-        vec[0][im] = (vec[0][im] + vec[0][im_x_bw])/2.0;
-        vec[1][im] = (vec[1][im] + vec[1][im_y_bw])/2.0;
-        vec[2][im] = (vec[2][im] + vec[2][im_z_bw])/2.0;
-      }
-    }
-  }
-}
-
 /*!
   \brief Enforce Lees-Edwards pbc on position
   \param[in,out] x position

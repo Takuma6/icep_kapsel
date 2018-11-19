@@ -13,6 +13,7 @@ const char* hdf5_writer::f_potential_charge_name= "e_potential";
 const char* hdf5_writer::f_plus_charge_name= "plus_charge";
 const char* hdf5_writer::f_minus_charge_name= "minus_charge";
 const char* hdf5_writer::f_epsilon_name= "epsilon";
+const char* hdf5_writer::f_maxwell_name[] = {"f_maxwell_x", "f_maxwell_y", "f_maxwell_z"};
 //particle properties
 const char* hdf5_writer::p_id_name = "id";
 const char* hdf5_writer::p_spec_name = "spec";
@@ -309,7 +310,7 @@ void hdf5_writer::write_end(){
 inline void hdf5_writer::write_field_scalar(const double* phi, const char* name,
 					    hid_t _loc=hid_null){
   hid_t loc = (_loc == hid_null ? gid_field : _loc);
-  write_data(loc, phi, name, H5T_NATIVE_DOUBLE, mem_dataspace_field, H5T_NATIVE_FLOAT, out_dataspace_field);
+  write_data(loc, phi, name, H5T_NATIVE_DOUBLE, mem_dataspace_field, H5T_NATIVE_DOUBLE, out_dataspace_field);
 }
 
 //writer for particle data
@@ -394,7 +395,7 @@ void hdf5_writer::write_charge_field_data(double** u, double* phi,
 }
 void hdf5_writer::write_raw_charge_field_data(double** u, double* phi, 
             double* surface_charge, double* solute_charge, double* potential,
-            double* plus_charge, double* minus_charge, double* epsilon){
+            double* plus_charge, double* minus_charge, double* epsilon, double **f_maxwell){
   if(print_field.none) return;
 
   if(print_field.vel){
@@ -412,6 +413,9 @@ void hdf5_writer::write_raw_charge_field_data(double** u, double* phi,
     this -> write_field_scalar(plus_charge,   f_plus_charge_name);
     this -> write_field_scalar(minus_charge,  f_minus_charge_name);
     this -> write_field_scalar(epsilon,  f_epsilon_name);
+    this -> write_field_scalar(f_maxwell[0], f_maxwell_name[0]);
+    this -> write_field_scalar(f_maxwell[1], f_maxwell_name[1]);
+    this -> write_field_scalar(f_maxwell[2], f_maxwell_name[2]);
   }
 }
 

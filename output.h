@@ -69,6 +69,7 @@ void Output_dielectric_charge_field_data(double** zeta,
             double* uk_dc,
             double** Concentration,
             double* potential,
+            double** f_maxwell,
             Particle* p,
             const CTime &time);
 

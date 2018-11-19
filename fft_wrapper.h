@@ -839,45 +839,61 @@ inline void Truncate_two_third_rule_ooura(double *a){
 }
 
 inline void Shift_vec_fw_imag(double ** dmy_vec){
-  int im;
-  std::complex<double> dmy_x_comp, dmy_y_comp, dmy_z_comp;
-#pragma omp  for private(im, dmy_x_comp, dmy_y_comp, dmy_z_comp)
+  int im, im2;
+  Complex* dmy_x_comp = reinterpret_cast<Complex*>(dmy_vec[0]);
+  Complex* dmy_y_comp = reinterpret_cast<Complex*>(dmy_vec[1]);
+  Complex* dmy_z_comp = reinterpret_cast<Complex*>(dmy_vec[2]);
+#pragma omp parallel for private(im, im2)
     for(int i=0;i<NX;i++){
       for(int j=0;j<NY;j++){
         for(int k=0;k<HNZ_;k++){
-          im=(i*NY*NZ_)+(j*NZ_)+2*k;
-          dmy_x_comp  = complex<double>(dmy_vec[0][im], dmy_vec[0][im+1])*Shift_x[im];
-          dmy_y_comp  = complex<double>(dmy_vec[1][im], dmy_vec[1][im+1])*Shift_y[im];
-          dmy_z_comp  = complex<double>(dmy_vec[2][im], dmy_vec[2][im+1])*Shift_z[im];
-
-          dmy_vec[0][im]   = dmy_x_comp.real();
-          dmy_vec[0][im+1] = dmy_x_comp.imag();
-          dmy_vec[1][im]   = dmy_y_comp.real();
-          dmy_vec[1][im+1] = dmy_y_comp.imag();
-          dmy_vec[2][im]   = dmy_z_comp.real();
-          dmy_vec[2][im+1] = dmy_z_comp.imag();
+          im=(i*NY*HNZ_)+(j*HNZ_)+k;
+          im2=(i*NY*NZ_) + (j*NZ_) + 2*k;
+          dmy_x_comp[im] *= Shift_x[im2];
+          dmy_y_comp[im] *= Shift_y[im2];
+          dmy_z_comp[im] *= Shift_z[im2];
         }
       }
     }
 }
+
 inline void Shift_vec_bw_imag(double ** dmy_vec){
-  int im;
-  std::complex<double> dmy_x_comp, dmy_y_comp, dmy_z_comp;
-#pragma omp  for private(im, dmy_x_comp, dmy_y_comp, dmy_z_comp)
+  int im, im2;
+  Complex* dmy_x_comp = reinterpret_cast<Complex*>(dmy_vec[0]);
+  Complex* dmy_y_comp = reinterpret_cast<Complex*>(dmy_vec[1]);
+  Complex* dmy_z_comp = reinterpret_cast<Complex*>(dmy_vec[2]);
+#pragma omp parallel for private(im, im2)
     for(int i=0;i<NX;i++){
       for(int j=0;j<NY;j++){
         for(int k=0;k<HNZ_;k++){
-          im=(i*NY*NZ_)+(j*NZ_)+2*k;
-          dmy_x_comp  = complex<double>(dmy_vec[0][im], dmy_vec[0][im+1])*conj(Shift_x[im]);
-          dmy_y_comp  = complex<double>(dmy_vec[1][im], dmy_vec[1][im+1])*conj(Shift_y[im]);
-          dmy_z_comp  = complex<double>(dmy_vec[2][im], dmy_vec[2][im+1])*conj(Shift_z[im]);
+          im=(i*NY*HNZ_)+(j*HNZ_)+k;
+          im2=(i*NY*NZ_) + (j*NZ_) + 2*k;
+          dmy_x_comp[im] *= conj(Shift_x[im2]);
+          dmy_y_comp[im] *= conj(Shift_y[im2]);
+          dmy_z_comp[im] *= conj(Shift_z[im2]);
+        }
+      }
+    }
+}
 
-          dmy_vec[0][im]   = dmy_x_comp.real();
-          dmy_vec[0][im+1] = dmy_x_comp.imag();
-          dmy_vec[1][im]   = dmy_y_comp.real();
-          dmy_vec[1][im+1] = dmy_y_comp.imag();
-          dmy_vec[2][im]   = dmy_z_comp.real();
-          dmy_vec[2][im+1] = dmy_z_comp.imag();
+inline void U_k2divergence_k_shift(double **uk, double *rhs_k){
+  int im, im2;
+  Complex ks[DIM];
+  Complex i_unit(0,1);
+  Complex* dmy_x_comp = reinterpret_cast<Complex*>(uk[0]);
+  Complex* dmy_y_comp = reinterpret_cast<Complex*>(uk[1]);
+  Complex* dmy_z_comp = reinterpret_cast<Complex*>(uk[2]);
+  Complex* rhs_comp   = reinterpret_cast<Complex*>(rhs_k);
+#pragma omp parallel for private(im, im2, ks)
+    for(int i=0;i<NX;i++){
+      for(int j=0;j<NY;j++){
+        for(int k=0;k<HNZ_;k++){
+          im=(i*NY*HNZ_)+(j*HNZ_)+k;
+          im2=(i*NY*NZ_) + (j*NZ_) + 2*k;
+          ks[0] = KX_int[im2] * WAVE_X * conj(Shift_x[im2]);
+          ks[1] = KY_int[im2] * WAVE_Y * conj(Shift_y[im2]);
+          ks[2] = KZ_int[im2] * WAVE_Z * conj(Shift_z[im2]);
+          rhs_comp[im] = i_unit*(dmy_x_comp[im]*ks[0] + dmy_y_comp[im]*ks[1] + dmy_z_comp[im]*ks[2]);
         }
       }
     }
