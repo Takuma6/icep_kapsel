@@ -279,7 +279,7 @@ void Output_dielectric_charge_field_data(double** zeta,
     Make_phi_qq_particle(phi, up[0], p);
   }//print phi/charge?
 
-  Make_dielectric_field(p, up[2], phi, eps_particle_top, eps_particle_bottom, eps_fluid);
+  Make_dielectric_field(p, up[2], up[1], eps_particle_top, eps_particle_bottom, eps_fluid);
 
   if(print_field.charge){
     for(int n=0;n<N_spec;n++){
@@ -303,6 +303,7 @@ void Output_dielectric_charge_field_data(double** zeta,
       }
     }
   }
+
   //Writers
   if(SW_OUTFORMAT == OUT_AVS_BINARY || SW_OUTFORMAT == OUT_AVS_ASCII){
     Output_avs_charge(Avs_parameters, u, phi, up[0], up[1], potential, time);

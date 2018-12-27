@@ -22,8 +22,6 @@ typedef Eigen::Triplet<double> T;
 typedef Eigen::Matrix<double, Eigen::Dynamic, 1> _VectorReplacement;
 typedef Eigen::Map<_VectorReplacement> VectorReplacement;
 
-//it takes long time to compute Ax=b in an iterative way like GMRES
-//so the potential (or electric field) should be kept till the next step, computing advection-diffusion
 extern double *Potential; 
 extern double *epsilon;
 extern double **grad_epsilon; 
@@ -58,6 +56,7 @@ inline void rm_external_electric_field_x(double *potential
   }
 }
 
+void Mem_alloc_potential(void);
 void Interpolate_vec_on_normal_grid(double **vec);
 void Interpolate_scalar_on_staggered_grid(double **vec, double *scalar);
 
@@ -92,8 +91,6 @@ void Make_Maxwell_force_x_on_fluid(double **force,
 								                   double *free_charge_density,
                                    double *potential,
 							                	   const CTime &jikan);
-
-void Mem_alloc_potential(void);
 
 /*!
   \brief Computes the total charge density field (real space)
@@ -138,7 +135,7 @@ void insertCoefficient_y(int id, int i_, int j_, int k_, double sign, Eigen::Vec
 void insertCoefficient_z(int id, int i_, int j_, int k_, double sign, Eigen::VectorXd& b, std::vector<T>& coeffs, Eigen::VectorXd& eps_eigen, double external_e_field[]);
 
 /*!
-  \brief Constract A and b in Ax=b
+  \brief Constract A and b in Ax=b, with finite deference method
   \details Construct 2D m*m sparse matrix A and 1D m vector b, in Ax=b
   \f[
   \vec{x}=A^{-1}\vec{b}
@@ -172,8 +169,42 @@ void Charge_field2potential_dielectric(double *free_charge_density,
                                        double *eps,
                                        double external_e_field[]);
 
+void test_Ax_FD(double *x,
+                double *Ax,
+                double *rhs_b,
+                double *free_charge_density,
+                double *eps,
+                double external_e_field[]);
+void test_ax(double *x, double *Ax, double *eps);
+
+/*!
+  \brief Constract A in Ax=b, with pseudo spectral method
+  \details Construct 2D m*m sparse matrix A and 1D m vector b, in Ax=b
+  \f[
+  \vec{x}=A^{-1}\vec{b}
+  \f]
+  \param[in] p particle data
+  \param[in] conc_k solute concentration field (reciprocal space) 
+  \param[out] charge_density total charge density (real space)
+  \param[in,out] phi auxiliary field to compute the smooth profile
+  \param[in,out] dmy_value auxiliary field to compute the concentration of a single solute species
+ */
 void Ax(const double *x, double*Ax);
+
+/*!
+  \brief Constract b in Ax=b, with pseudo spectral method
+  \details Construct 2D m*m sparse matrix A and 1D m vector b, in Ax=b
+  \f[
+  \vec{x}=A^{-1}\vec{b}
+  \f]
+  \param[in] p particle data
+  \param[in] conc_k solute concentration field (reciprocal space) 
+  \param[out] charge_density total charge density (real space)
+  \param[in,out] phi auxiliary field to compute the smooth profile
+  \param[in,out] dmy_value auxiliary field to compute the concentration of a single solute species
+ */
 void Build_rhs(double *rhs, double *free_charge_density, double *eps, double external_e_field[]);
+
 /*!
   \brief Solve linear equation Ax=b (real space, staggered grid), with a linear operator
   \details Compute the electric potential by solving linear equation Ax=b from Poisson eq. 
