@@ -279,8 +279,6 @@ void Output_dielectric_charge_field_data(double** zeta,
     Make_phi_qq_particle(phi, up[0], p);
   }//print phi/charge?
 
-  Make_dielectric_field(p, up[2], up[1], eps_particle_top, eps_particle_bottom, eps_fluid);
-
   if(print_field.charge){
     for(int n=0;n<N_spec;n++){
       A_k2a(Concentration[n]);
@@ -299,6 +297,7 @@ void Output_dielectric_charge_field_data(double** zeta,
     }
     up[0][im]*= dmy_surface_area;
     up[1][im] = dmy*(1.0 - phi[im]);
+    up[2][im] = epsilon[im];
   }
       }
     }

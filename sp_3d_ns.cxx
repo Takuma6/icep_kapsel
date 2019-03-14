@@ -53,18 +53,19 @@ void Time_evolution_hydro(double **zeta, double uk_dc[DIM], double **f, Particle
         Make_phi_particle_sum(phi, phi_sum, p);
 	
 	if(SW_EQ == Electrolyte){
-    if(!Dielectric){
+	  if(!Dielectric){
 	    double * rescale_factor = new double[N_spec];
 	    Rescale_solute(rescale_factor
 			   ,Total_solute
 			   ,Concentration, p, phi, up[0]);
 	    delete [] rescale_factor;
-    }
+	    }
 	}
 	
 	if(SW_EQ == Electrolyte){
 	    {
 		Reset_u(up);
+    Reset_u(f);
 		Calc_f_hydro_correct_precision(p, phi_sum, u, jikan);
 		for(int n=0;n<Particle_Number;n++){
 		    for(int d=0;d<DIM;d++){

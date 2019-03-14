@@ -173,6 +173,9 @@ void Add_zeta_viscous_term(double ** zeta, double **f, const Index_range &ijk_ra
     for(int i=ijk_range.istart; i<=ijk_range.iend; i++){
       for(int j=ijk_range.jstart; j<=ijk_range.jend; j++){
     	for(int k=ijk_range.kstart; k<=ijk_range.kend; k++){
+    //for(int i=0; i<NX; i++){
+      //for(int j=0; j<NY; j++){
+        //for(int k=0; k<NZ_; k++){
 	  im=(i*NY*NZ_)+(j*NZ_)+k;
 	  f[0][im] += -(NU * K2[im]* zeta[0][im]);
 	  f[1][im] += -(NU * K2[im]* zeta[1][im]);

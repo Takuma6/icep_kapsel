@@ -108,7 +108,7 @@ void Make_Maxwell_force_x_on_fluid(double **force,
 void Conc_k2charge_field_no_surfase_charge(Particle *p,
                                            double **conc_k,
                                            double *charge_density,
-                                           double *phi,
+                                           double *phi_p,
                                            double *dmy_value); // working memory
 
 void Conc_k2charge_field_surface_charge(Particle *p, 
@@ -164,10 +164,11 @@ void buildProblem(std::vector<T>& coefficients,
   \param[in,out] phi auxiliary field to compute the smooth profile
   \param[in,out] dmy_value auxiliary field to compute the concentration of a single solute species
  */
-void Charge_field2potential_dielectric(double *free_charge_density,
-                                       double *potential,
-                                       double *eps,
-                                       double external_e_field[]);
+void Charge_field2potential_dielectric_FD(double *free_charge_density,
+                                          double *potential,
+                                          double *eps,
+                                          double *rhs, //working memory
+                                          double external_e_field[]);
 
 void test_Ax_FD(double *x,
                 double *Ax,
